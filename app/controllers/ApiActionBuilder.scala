@@ -1,5 +1,6 @@
 package controllers
 
+import models.{User, Users}
 import play.api.Configuration
 import play.api.http.Writeable
 import play.api.libs.json.Json.JsValueWrapper
@@ -9,6 +10,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import utils.Implicits.futureWrapper
 import utils.{Crypto, DateTime}
+import utils.SlickAPI._
 
 /**
   * Mixin trait for API controllers.
@@ -59,35 +61,53 @@ trait ApiActionBuilder extends Controller {
 		}
 	}
 
-	/** An authenticated user action */
+	/** An API action */
 	object ApiAction extends ActionBuilder[ApiRequest] {
-		/** Builds a new ApiRequest from a verified token */
-		def build[A](token: JsObject)(implicit request: Request[A]) = ApiRequest((token \ "user").as[Int], request)
+		/** Returns the token from the Authorization header or query string parameter */
+		private def token[A](implicit request: Request[A]): Option[String] = {
+			request.getQueryString("token").orElse {
+				request.headers.get("Authorization").collect {
+					case auth if auth.startsWith("Token ") => auth.substring(6).trim
+				}
+			}.orElse {
+				request.headers.get("X-Auth-Token")
+			}
+		}
 
-		/** Check that the token expire date is not in the past */
-		def checkExpires(token: JsObject): Boolean = (token \ "expires").asOpt[DateTime].exists(_ > DateTime.now)
+		/** Decodes the token string and validates expiration date */
+		private def decode(token: String): Option[JsObject] = {
+			for {
+				obj <- Crypto.check(token)
+				if (obj \ "expires").asOpt[DateTime].exists(_ > DateTime.now)
+			} yield obj
+		}
 
-		/** Returns the token from the X-Auth-Token header or query parameter */
-		def token[A](implicit request: Request[A]) = request.headers.get("X-Auth-Token").orElse(request.getQueryString("token"))
+		/** Fetches the user from the request token, if available */
+		private def user[A](implicit request: Request[A]): Future[Option[User]] = {
+			token.flatMap(decode) match {
+				case Some(tok) => Users.filter(_.id === (tok \ "user").as[Int]).headOption
+				case None => Future.successful(None)
+			}
+		}
 
 		/** Transforms a basic Request to ApiRequest */
-		def transform[A](implicit request: Request[A]) = token.flatMap(Crypto.check).filter(checkExpires).map(build[A])
-
-		/** Failure to authenticate */
-		def failure = Future.successful(Unauthorized('UNAUTHORIZED))
+		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = {
+			for (u <- user) yield ApiRequest(u.orNull, request)
+		}
 
 		/** Invoke the action's block */
-		override def invokeBlock[A](request: Request[A], block: ApiRequest[A] => Future[Result]) = {
-			println(request.headers.get("Authorization"))
-			transform(request).map(wrap(block)).getOrElse(failure)
+		override def invokeBlock[A](request: Request[A], block: ApiRequest[A] => Future[Result]): Future[Result] = {
+			transform(request).flatMap(wrap(block))
 		}
 	}
 
-	/** Safely perform unauthenticated request */
-	object UnauthenticatedApiAction extends ActionBuilder[Request] {
-		override def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]) = {
-			println(request.headers.get("Authorization"))
-			wrap(block)(request)
+	/** An authenticated API action */
+	object UserApiAction extends ActionBuilder[ApiRequest] {
+		override def invokeBlock[A](request: Request[A], block: (ApiRequest[A]) => Future[Result]): Future[Result] = {
+			ApiAction.transform(request).flatMap { req =>
+				if (req.anon) Unauthorized('UNAUTHORIZED)
+				else wrap(block)(req)
+			}
 		}
 	}
 
