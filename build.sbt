@@ -8,7 +8,9 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala, DockerPlugin)
 libraryDependencies ++= Seq(
   jdbc,
   cache,
-  ws
+  ws,
+  "mysql" % "mysql-connector-java" % "5.1.39",
+  "com.typesafe.play" %% "play-slick" % "2.0.0"
 )
 
 dockerExposedPorts := Seq(9000)
