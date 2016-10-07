@@ -2,4 +2,15 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-GET        /test        controllers.DummyController.test
+POST          /auth/token         controllers.AuthController.token
+POST          /auth/extend        controllers.AuthController.extend
+POST          /auth/hash          controllers.AuthController.hash
+
+GET           /test               controllers.DummyController.test
+
+# Catch All
+GET           /*path              controllers.DummyController.undefined(path)
+POST          /*path              controllers.DummyController.undefined(path)
+PUT           /*path              controllers.DummyController.undefined(path)
+PATCH         /*path              controllers.DummyController.undefined(path)
+DELETE        /*path              controllers.DummyController.undefined(path)
