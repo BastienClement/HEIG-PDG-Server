@@ -12,4 +12,5 @@ import play.api.mvc.{Request, WrappedRequest}
   */
 case class ApiRequest[A](user: User, request: Request[A]) extends WrappedRequest[A](request) {
 	final def anon: Boolean = user == null
+	final def userOpt: Option[User] = Option(user)
 }
