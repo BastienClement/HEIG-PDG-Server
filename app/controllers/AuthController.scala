@@ -24,7 +24,7 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 	private def genToken(user: User): Result = {
 		val expires = DateTime.now + 7.days
 		val token = Json.obj("user" -> user.id, "expires" -> expires)
-		Ok(Json.obj("token" -> token, "expires" -> expires))
+		Ok(Json.obj("token" -> crypto.sign(token), "expires" -> expires))
 	}
 
 	/**
