@@ -1,14 +1,13 @@
 package controllers
 
-import com.google.inject.{Inject, Singleton}
-import play.api.Configuration
+import com.google.inject.{Inject, Provider, Singleton}
+import play.api.Application
 import play.api.libs.json.{JsNull, Json}
 import play.api.mvc.{Action, Controller}
-import scala.concurrent.ExecutionContext
 import services.Uptime
 
 @Singleton
-class DummyController @Inject() (uptime: Uptime)(implicit val ec: ExecutionContext, val conf: Configuration)
+class DummyController @Inject() (uptime: Uptime)(val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	def nyi0() = NotYetImplemented
 	def nyi1(a: String) = NotYetImplemented

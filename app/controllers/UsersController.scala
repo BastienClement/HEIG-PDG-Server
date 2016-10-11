@@ -1,12 +1,11 @@
 package controllers
 
-import com.google.inject.{Inject, Singleton}
-import play.api.Configuration
+import com.google.inject.{Inject, Provider, Singleton}
+import play.api.Application
 import play.api.mvc.Controller
-import scala.concurrent.ExecutionContext
 
 @Singleton
-class UsersController @Inject() (implicit val ec: ExecutionContext, val conf: Configuration)
+class UsersController @Inject() (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 
 

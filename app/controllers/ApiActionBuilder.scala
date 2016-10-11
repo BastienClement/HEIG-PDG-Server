@@ -1,15 +1,17 @@
 package controllers
 
+import com.google.inject.Provider
 import models.{User, Users}
-import play.api.Configuration
+import play.api.Application
 import play.api.http.Writeable
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+import services.Crypto
+import utils.DateTime
 import utils.Implicits.futureWrapper
-import utils.{Crypto, DateTime}
 import utils.SlickAPI._
 
 /**
@@ -17,8 +19,10 @@ import utils.SlickAPI._
   * The controller must be injected with conf and an execution context.
   */
 trait ApiActionBuilder extends Controller {
-	implicit val conf: Configuration
-	implicit val ec: ExecutionContext
+	val app: Provider[Application]
+
+	implicit lazy val ec = app.get.injector.instanceOf[ExecutionContext]
+	private lazy val crypto = app.get.injector.instanceOf[Crypto]
 
 	/**
 	  * Serializes Throwable instance into JSON objects.
@@ -77,7 +81,7 @@ trait ApiActionBuilder extends Controller {
 		/** Decodes the token string and validates expiration date */
 		private def decode(token: String): Option[JsObject] = {
 			for {
-				obj <- Crypto.check(token)
+				obj <- crypto.check(token)
 				if (obj \ "expires").asOpt[DateTime].exists(_ > DateTime.now)
 			} yield obj
 		}
