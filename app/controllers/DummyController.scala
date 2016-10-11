@@ -20,6 +20,7 @@ class DummyController @Inject() (uptime: Uptime)(val app: Provider[Application])
 			"server" -> "Eventail API v1",
 			"version" -> 1,
 			"revision" -> JsNull,
+			"mode" -> app.get.mode.toString,
 			"start" -> uptime.start.toString,
 			"uptime" -> uptime.now,
 			"user" -> req.userOpt.map(_.mail)
