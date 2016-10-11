@@ -1,17 +1,28 @@
 # Routes
 
 # Authentication
-POST          /auth/token         controllers.AuthController.token
-POST          /auth/extend        controllers.AuthController.extend
-POST          /auth/hash          controllers.AuthController.hash
+POST          /auth/token                 controllers.AuthController.token
+POST          /auth/extend                controllers.AuthController.extend
+POST          /auth/hash                  controllers.AuthController.hash
+
+GET           /events                     controllers.DummyController.nyi0
+POST          /events                     controllers.DummyController.nyi0
+
+GET           /events/:id                 controllers.DummyController.nyi1(id)
+PATCH         /events/:id                 controllers.DummyController.nyi1(id)
+DELETE        /events/:id                 controllers.DummyController.nyi1(id)
+
+GET           /users                      controllers.DummyController.nyi0
+PUT           /users/self/location        controllers.DummyController.nyi0
+GET           /users/:id                  controllers.DummyController.nyi1(id)
 
 # Server status
-GET           /status             controllers.DummyController.status
-GET           /                   controllers.DummyController.status
+GET           /status                     controllers.DummyController.status
+GET           /                           controllers.DummyController.status
 
 # Catch All
-GET           /*path              controllers.DummyController.undefined(path)
-POST          /*path              controllers.DummyController.undefined(path)
-PUT           /*path              controllers.DummyController.undefined(path)
-PATCH         /*path              controllers.DummyController.undefined(path)
-DELETE        /*path              controllers.DummyController.undefined(path)
+GET           /*path                      controllers.DummyController.undefined(path)
+POST          /*path                      controllers.DummyController.undefined(path)
+PUT           /*path                      controllers.DummyController.undefined(path)
+PATCH         /*path                      controllers.DummyController.undefined(path)
+DELETE        /*path                      controllers.DummyController.undefined(path)
