@@ -1,12 +1,13 @@
 # Routes
-# This file defines all application routes (Higher priority routes first)
-# ~~~~
 
+# Authentication
 POST          /auth/token         controllers.AuthController.token
 POST          /auth/extend        controllers.AuthController.extend
 POST          /auth/hash          controllers.AuthController.hash
 
-GET           /test               controllers.DummyController.test
+# Server status
+GET           /status             controllers.DummyController.status
+GET           /                   controllers.DummyController.status
 
 # Catch All
 GET           /*path              controllers.DummyController.undefined(path)

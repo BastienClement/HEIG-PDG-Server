@@ -1,15 +1,17 @@
 package controllers
 
+import com.google.inject.Provider
 import models.{User, Users}
-import play.api.Configuration
+import play.api.Application
 import play.api.http.Writeable
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+import services.Crypto
+import utils.DateTime
 import utils.Implicits.futureWrapper
-import utils.{Crypto, DateTime}
 import utils.SlickAPI._
 
 /**
@@ -17,8 +19,10 @@ import utils.SlickAPI._
   * The controller must be injected with conf and an execution context.
   */
 trait ApiActionBuilder extends Controller {
-	implicit val conf: Configuration
-	implicit val ec: ExecutionContext
+	val app: Provider[Application]
+
+	implicit lazy val ec = app.get.injector.instanceOf[ExecutionContext]
+	private lazy val crypto = app.get.injector.instanceOf[Crypto]
 
 	/**
 	  * Serializes Throwable instance into JSON objects.
@@ -67,7 +71,7 @@ trait ApiActionBuilder extends Controller {
 		private def token[A](implicit request: Request[A]): Option[String] = {
 			request.getQueryString("token").orElse {
 				request.headers.get("Authorization").collect {
-					case auth if auth.startsWith("Token ") => auth.substring(6).trim
+					case auth if auth.toLowerCase.startsWith("token ") => auth.substring(6).trim
 				}
 			}.orElse {
 				request.headers.get("X-Auth-Token")
@@ -77,7 +81,7 @@ trait ApiActionBuilder extends Controller {
 		/** Decodes the token string and validates expiration date */
 		private def decode(token: String): Option[JsObject] = {
 			for {
-				obj <- Crypto.check(token)
+				obj <- crypto.check(token)
 				if (obj \ "expires").asOpt[DateTime].exists(_ > DateTime.now)
 			} yield obj
 		}
@@ -105,7 +109,7 @@ trait ApiActionBuilder extends Controller {
 	object UserApiAction extends ActionBuilder[ApiRequest] {
 		override def invokeBlock[A](request: Request[A], block: (ApiRequest[A]) => Future[Result]): Future[Result] = {
 			ApiAction.transform(request).flatMap { req =>
-				if (req.anon) Unauthorized('UNAUTHORIZED)
+				if (req.anon) Unauthorized('AUTHORIZATION_REQUIRED)
 				else wrap(block)(req)
 			}
 		}
@@ -115,9 +119,14 @@ trait ApiActionBuilder extends Controller {
 	case class ApiException(sym: Symbol, status: Status = InternalServerError) extends Exception
 
 	/** Accessor for queryString parameters */
-	implicit class QueryStringReader(val req: ApiRequest[_]) {
+	implicit class QueryStringReader(private val req: ApiRequest[_]) {
 		private def map[T](key: String)(mapper: String => Option[T]): Option[T] = req.getQueryString(key).flatMap(mapper)
 		def getQueryStringAsInt(key: String): Option[Int] = map(key) { s => Try(Integer.parseInt(s)).toOption }
+	}
+
+	implicit class SafeJsonAs(private val js: JsReadable) {
+		def asSafe[T: Reads](e: ApiException): T = js.asOpt[T].getOrElse(throw e)
+		def asSafe[T: Reads](sym: Symbol, status: Status = UnprocessableEntity): T = asSafe[T](ApiException(sym, status))
 	}
 
 	/** A placeholder for not implemented actions */

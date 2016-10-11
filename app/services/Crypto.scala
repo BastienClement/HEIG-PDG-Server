@@ -1,5 +1,6 @@
-package utils
+package services
 
+import com.google.inject.{Inject, Singleton}
 import java.nio.charset.Charset
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -7,11 +8,10 @@ import org.apache.commons.codec.binary.Base64
 import play.api.Configuration
 import play.api.libs.json._
 import scala.util.Try
+import utils.BCrypt
 
-/**
-  * Crypto utilities
-  */
-object Crypto {
+@Singleton
+class Crypto @Inject() (conf: Configuration) {
 	/**
 	  * Hashes a password with BCrypt.
 	  *
@@ -51,11 +51,10 @@ object Crypto {
 	/**
 	  * Computes the signature for a JSON value.
 	  *
-	  * @param obj  the JSON value to sign
-	  * @param conf the server configuration object
+	  * @param obj the JSON value to sign
 	  * @return the signature string
 	  */
-	private def computeSignature(obj: JsValue)(implicit conf: Configuration): String = {
+	private def computeSignature(obj: JsValue): String = {
 		val utf8 = Charset.forName("UTF-8")
 		val hmac = Mac.getInstance("HmacSHA256")
 		hmac.init(new SecretKeySpec(utf8.encode(conf.getString("token.key").get).array(), "HmacSHA256"))
@@ -66,11 +65,10 @@ object Crypto {
 	/**
 	  * Signs the given JsObject.
 	  *
-	  * @param obj  the JSON object to sign
-	  * @param conf the server configuration object
+	  * @param obj the JSON object to sign
 	  * @return an encoded token that can be sent to the client
 	  */
-	def sign(obj: JsObject)(implicit conf: Configuration): String = {
+	def sign(obj: JsObject): String = {
 		val signature = JsString(computeSignature(obj))
 		val signed = obj + ("$$sign" -> signature)
 		Base64.encodeBase64String(signed.toString().getBytes("UTF-8"))
@@ -80,10 +78,9 @@ object Crypto {
 	  * Decodes a token and check signature.
 	  *
 	  * @param token the client token
-	  * @param conf  the server configuration object
 	  * @return an option of the signed JSON value, if token is correct
 	  */
-	def check(token: String)(implicit conf: Configuration): Option[JsObject] = {
+	def check(token: String): Option[JsObject] = {
 		val json = new String(Base64.decodeBase64(token), "UTF-8")
 		val obj = Try {
 			Json.parse(json).as[JsObject]
