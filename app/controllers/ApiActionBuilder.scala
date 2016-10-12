@@ -10,7 +10,7 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import services.Crypto
-import utils.DateTime
+import utils.{DateTime, ErrorStrings}
 import utils.Implicits.futureWrapper
 import utils.SlickAPI._
 
@@ -41,7 +41,10 @@ trait ApiActionBuilder extends Controller {
 	implicit val throwableWrites: Writes[Throwable] = Writes[Throwable](serializeThrowable(_))
 
 	/** Error message JS object */
-	val writeSymbol: (Symbol => JsObject) = sym => Json.obj("err" -> sym.name)
+	val writeSymbol: (Symbol => JsObject) = sym => Json.obj(
+		"error" -> sym.name,
+		"message" -> ErrorStrings.get(sym)
+	)
 
 	implicit val errorSymbol = Writeable[Symbol](
 		writeSymbol.andThen(implicitly[Writeable[JsValue]].transform),
@@ -95,8 +98,9 @@ trait ApiActionBuilder extends Controller {
 		}
 
 		/** Transforms a basic Request to ApiRequest */
-		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = {
-			for (u <- user) yield ApiRequest(u.orNull, request)
+		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = request match {
+			case apiRequest: ApiRequest[A] => apiRequest
+			case other => for (u <- user) yield ApiRequest(u.orNull, other)
 		}
 
 		/** Invoke the action's block */
