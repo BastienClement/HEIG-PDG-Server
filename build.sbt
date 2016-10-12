@@ -18,6 +18,7 @@ libraryDependencies ++= Seq(
 	jdbc,
 	cache,
 	ws,
+	filters,
 	"mysql" % "mysql-connector-java" % "5.1.39",
 	"com.typesafe.play" %% "play-slick" % "2.0.0"
 )
