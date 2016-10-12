@@ -13,6 +13,7 @@ PATCH         /events/:id                 controllers.DummyController.nyi1(id)
 DELETE        /events/:id                 controllers.DummyController.nyi1(id)
 
 GET           /users                      controllers.DummyController.nyi0
+GET           /users/self                 controllers.DummyController.nyi0
 PUT           /users/self/location        controllers.DummyController.nyi0
 GET           /users/:id                  controllers.DummyController.nyi1(id)
 

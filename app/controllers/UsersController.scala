@@ -8,5 +8,9 @@ import play.api.mvc.Controller
 class UsersController @Inject() (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 
+	def user(id: Int) = ApiAction.async { req =>
+		NotYetImplemented(req)
+	}
 
+	def self = UserApiAction.async { req => user(req.user.id)(req) }
 }

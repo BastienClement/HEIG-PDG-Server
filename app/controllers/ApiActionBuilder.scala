@@ -95,8 +95,9 @@ trait ApiActionBuilder extends Controller {
 		}
 
 		/** Transforms a basic Request to ApiRequest */
-		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = {
-			for (u <- user) yield ApiRequest(u.orNull, request)
+		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = request match {
+			case apiRequest: ApiRequest[A] => apiRequest
+			case other => for (u <- user) yield ApiRequest(u.orNull, other)
 		}
 
 		/** Invoke the action's block */
