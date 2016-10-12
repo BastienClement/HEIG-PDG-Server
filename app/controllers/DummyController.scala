@@ -13,7 +13,15 @@ class DummyController @Inject() (uptime: Uptime)(val app: Provider[Application])
 	def nyi1(a: String) = NotYetImplemented
 	def nyi2(a: String, b: String) = NotYetImplemented
 
-	def undefined(path: String) = Action { NotFound('UNDEFINED_ACTION) }
+	def undefined(path: String) = Action { req =>
+		NotFound(Json.obj(
+			"error" -> "UNDEFINED_ACTION",
+			"message" -> "The resource is undefined or the method is unavailable.",
+			"method" -> req.method,
+			"resource" -> req.path,
+			"querystring" -> req.rawQueryString
+		))
+	}
 
 	def status = ApiAction { req =>
 		Ok(Json.obj(

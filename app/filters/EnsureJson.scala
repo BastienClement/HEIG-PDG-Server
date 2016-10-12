@@ -19,7 +19,8 @@ class EnsureJson @Inject()(
 				case html if html.body.contentType.exists(_.startsWith("text/html")) =>
 					html.body.consumeData.map { body =>
 						Results.InternalServerError(Json.obj(
-							"err" -> "HTML_RESULT_CONTENT_TYPE",
+							"error" -> "HTML_RESULT_CONTENT_TYPE",
+							"message" -> "The request response is an HTML document and has beed wrapped in a JSON object. Use ?html to disable this behavior.",
 							"status" -> html.header.status,
 							"body" -> body.utf8String
 						))
