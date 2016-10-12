@@ -20,9 +20,7 @@ class JsonPrettyfier @Inject()(
 						new Results.Status(json.header.status)(Json.prettyPrint(Json.parse(body.utf8String)))
 					}
 
-				case other =>
-					println(other.body.contentType)
-					other
+				case other => other
 			}
 		}
 	}
