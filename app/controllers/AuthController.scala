@@ -1,13 +1,16 @@
 package controllers
 
 import com.google.inject.{Inject, Provider, Singleton}
+import controllers.api.ApiActionBuilder
 import models.{User, Users}
 import play.api.Application
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{Controller, Result}
 import scala.concurrent.duration._
+import scala.language.implicitConversions
 import services.Crypto
 import utils.DateTime
+import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
 
 @Singleton
@@ -21,8 +24,9 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 	  *
 	  * @param user the user authenticated by the token
 	  */
-	private def genToken(user: User): Result = {
-		val expires = DateTime.now + 7.days
+	private def genToken(user: User, extended: Boolean = false): Result = {
+		val duration = if (extended && user.admin) 180.days else 7.days
+		val expires = DateTime.now + duration
 		val token = Json.obj("user" -> user.id, "expires" -> expires)
 		Ok(Json.obj("token" -> crypto.sign(token), "expires" -> expires))
 	}
@@ -31,23 +35,24 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 	  * Request for a new authentication token from credentials
 	  */
 	def token = ApiAction.async(parse.json) { req =>
-		val mail = (req.body \ "mail").asSafe[String]('AUTH_TOKEN_MISSING_MAIL)
-		val pass = (req.body \ "pass").asSafe[String]('AUTH_TOKEN_MISSING_PASS)
+		val mail = (req.body \ "mail").to[String]
+		val pass = (req.body \ "pass").to[String]
 
 		Users.filter(_.mail === mail).head.filter { u =>
 			crypto.check(pass, u.pass)
 		}.map { u =>
-			genToken(u)
+			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))
 		}.recover { case e =>
 			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
 		}
 	}
 
-	def extend = UserApiAction { req =>
+	def extend = AuthApiAction { req =>
 		genToken(req.user)
 	}
 
 	def hash = ApiAction(parse.json) { req =>
-		Ok(JsString(crypto.hash((req.body \ "pass").as[String])))
+		val pass = (req.body \ "pass").to[String]
+		Ok(JsString(crypto.hash(pass)))
 	}
 }

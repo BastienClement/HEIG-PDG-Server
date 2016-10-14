@@ -1,18 +1,21 @@
-package controllers
+package controllers.api
 
 import com.google.inject.Provider
 import models.{User, Users}
 import play.api.Application
+import play.api.cache.CacheApi
 import play.api.http.Writeable
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.api.mvc._
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.implicitConversions
 import scala.util.Try
 import services.Crypto
-import utils.{DateTime, ErrorStrings}
 import utils.Implicits.futureWrapper
 import utils.SlickAPI._
+import utils.{DateTime, ErrorStrings}
 
 /**
   * Mixin trait for API controllers.
@@ -22,7 +25,8 @@ trait ApiActionBuilder extends Controller {
 	val app: Provider[Application]
 
 	implicit lazy val ec = app.get.injector.instanceOf[ExecutionContext]
-	private lazy val crypto = app.get.injector.instanceOf[Crypto]
+	lazy val crypto = app.get.injector.instanceOf[Crypto]
+	lazy val cache = app.get.injector.instanceOf[CacheApi]
 
 	/**
 	  * Serializes Throwable instance into JSON objects.
@@ -92,7 +96,11 @@ trait ApiActionBuilder extends Controller {
 		/** Fetches the user from the request token, if available */
 		private def user[A](implicit request: Request[A]): Future[Option[User]] = {
 			token.flatMap(decode) match {
-				case Some(tok) => Users.filter(_.id === (tok \ "user").as[Int]).headOption
+				case Some(tok) =>
+					val id = (tok \ "user").as[Int]
+					cache.getOrElse(s"users.$id", 5.minutes) {
+						Users.filter(_.id === id).headOption
+					}
 				case None => Future.successful(None)
 			}
 		}
@@ -110,7 +118,7 @@ trait ApiActionBuilder extends Controller {
 	}
 
 	/** An authenticated API action */
-	object UserApiAction extends ActionBuilder[ApiRequest] {
+	object AuthApiAction extends ActionBuilder[ApiRequest] {
 		override def invokeBlock[A](request: Request[A], block: (ApiRequest[A]) => Future[Result]): Future[Result] = {
 			ApiAction.transform(request).flatMap { req =>
 				if (req.anon) Unauthorized('AUTHORIZATION_REQUIRED)
@@ -119,18 +127,10 @@ trait ApiActionBuilder extends Controller {
 		}
 	}
 
-	/** API exception */
-	case class ApiException(sym: Symbol, status: Status = InternalServerError) extends Exception
-
 	/** Accessor for queryString parameters */
 	implicit class QueryStringReader(private val req: ApiRequest[_]) {
 		private def map[T](key: String)(mapper: String => Option[T]): Option[T] = req.getQueryString(key).flatMap(mapper)
 		def getQueryStringAsInt(key: String): Option[Int] = map(key) { s => Try(Integer.parseInt(s)).toOption }
-	}
-
-	implicit class SafeJsonAs(private val js: JsReadable) {
-		def asSafe[T: Reads](e: ApiException): T = js.asOpt[T].getOrElse(throw e)
-		def asSafe[T: Reads](sym: Symbol, status: Status = UnprocessableEntity): T = asSafe[T](ApiException(sym, status))
 	}
 
 	/** A placeholder for not implemented actions */
