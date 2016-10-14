@@ -131,6 +131,7 @@ trait ApiActionBuilder extends Controller {
 	implicit class SafeJsonAs(private val js: JsReadable) {
 		def asSafe[T: Reads](e: ApiException): T = js.asOpt[T].getOrElse(throw e)
 		def asSafe[T: Reads](sym: Symbol, status: Status = UnprocessableEntity): T = asSafe[T](ApiException(sym, status))
+		def asSafe[T: Reads]: T = asSafe('UNPROCESSABLE_ENTITY)
 	}
 
 	/** A placeholder for not implemented actions */

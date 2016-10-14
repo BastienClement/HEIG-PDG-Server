@@ -31,8 +31,8 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 	  * Request for a new authentication token from credentials
 	  */
 	def token = ApiAction.async(parse.json) { req =>
-		val mail = (req.body \ "mail").asSafe[String]('AUTH_TOKEN_MISSING_MAIL)
-		val pass = (req.body \ "pass").asSafe[String]('AUTH_TOKEN_MISSING_PASS)
+		val mail = (req.body \ "mail").asSafe[String]
+		val pass = (req.body \ "pass").asSafe[String]
 
 		Users.filter(_.mail === mail).head.filter { u =>
 			crypto.check(pass, u.pass)
