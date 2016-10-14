@@ -24,8 +24,9 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 	  *
 	  * @param user the user authenticated by the token
 	  */
-	private def genToken(user: User): Result = {
-		val expires = DateTime.now + 7.days
+	private def genToken(user: User, extended: Boolean = false): Result = {
+		val duration = if (extended && user.admin) 180.days else 7.days
+		val expires = DateTime.now + duration
 		val token = Json.obj("user" -> user.id, "expires" -> expires)
 		Ok(Json.obj("token" -> crypto.sign(token), "expires" -> expires))
 	}
@@ -40,7 +41,7 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 		Users.filter(_.mail === mail).head.filter { u =>
 			crypto.check(pass, u.pass)
 		}.map { u =>
-			genToken(u)
+			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))
 		}.recover { case e =>
 			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
 		}
