@@ -1,4 +1,4 @@
-package controllers
+package controllers.api
 
 import com.google.inject.Provider
 import models.{User, Users}
@@ -8,11 +8,12 @@ import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.implicitConversions
 import scala.util.Try
 import services.Crypto
-import utils.{DateTime, ErrorStrings}
 import utils.Implicits.futureWrapper
 import utils.SlickAPI._
+import utils.{DateTime, ErrorStrings}
 
 /**
   * Mixin trait for API controllers.
@@ -110,7 +111,7 @@ trait ApiActionBuilder extends Controller {
 	}
 
 	/** An authenticated API action */
-	object UserApiAction extends ActionBuilder[ApiRequest] {
+	object AuthApiAction extends ActionBuilder[ApiRequest] {
 		override def invokeBlock[A](request: Request[A], block: (ApiRequest[A]) => Future[Result]): Future[Result] = {
 			ApiAction.transform(request).flatMap { req =>
 				if (req.anon) Unauthorized('AUTHORIZATION_REQUIRED)
@@ -119,19 +120,10 @@ trait ApiActionBuilder extends Controller {
 		}
 	}
 
-	/** API exception */
-	case class ApiException(sym: Symbol, status: Status = InternalServerError) extends Exception
-
 	/** Accessor for queryString parameters */
 	implicit class QueryStringReader(private val req: ApiRequest[_]) {
 		private def map[T](key: String)(mapper: String => Option[T]): Option[T] = req.getQueryString(key).flatMap(mapper)
 		def getQueryStringAsInt(key: String): Option[Int] = map(key) { s => Try(Integer.parseInt(s)).toOption }
-	}
-
-	implicit class SafeJsonAs(private val js: JsReadable) {
-		def asSafe[T: Reads](e: ApiException): T = js.asOpt[T].getOrElse(throw e)
-		def asSafe[T: Reads](sym: Symbol, status: Status = UnprocessableEntity): T = asSafe[T](ApiException(sym, status))
-		def asSafe[T: Reads]: T = asSafe('UNPROCESSABLE_ENTITY)
 	}
 
 	/** A placeholder for not implemented actions */

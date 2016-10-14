@@ -1,13 +1,16 @@
 package controllers
 
 import com.google.inject.{Inject, Provider, Singleton}
+import controllers.api.ApiActionBuilder
 import models.{User, Users}
 import play.api.Application
 import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{Controller, Result}
 import scala.concurrent.duration._
+import scala.language.implicitConversions
 import services.Crypto
 import utils.DateTime
+import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
 
 @Singleton
@@ -31,8 +34,8 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 	  * Request for a new authentication token from credentials
 	  */
 	def token = ApiAction.async(parse.json) { req =>
-		val mail = (req.body \ "mail").asSafe[String]
-		val pass = (req.body \ "pass").asSafe[String]
+		val mail = (req.body \ "mail").to[String]
+		val pass = (req.body \ "pass").to[String]
 
 		Users.filter(_.mail === mail).head.filter { u =>
 			crypto.check(pass, u.pass)
@@ -43,11 +46,12 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 		}
 	}
 
-	def extend = UserApiAction { req =>
+	def extend = AuthApiAction { req =>
 		genToken(req.user)
 	}
 
 	def hash = ApiAction(parse.json) { req =>
-		Ok(JsString(crypto.hash((req.body \ "pass").as[String])))
+		val pass = (req.body \ "pass").to[String]
+		Ok(JsString(crypto.hash(pass)))
 	}
 }
