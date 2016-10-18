@@ -11,7 +11,9 @@ class Location @Inject()(es: ElasticSearch)(implicit val ec: ExecutionContext) {
 		val uid = user.id
 		es.post(s"/users/user/$uid", Json.obj(
 			"id" -> uid,
-			"name" -> user.username,
+			"firstname" -> user.firstname,
+			"lastname" -> user.lastname,
+			"username" -> user.username,
 			"mail" -> user.mail,
 			"location" -> Json.obj(
 				"lat" -> lat,
