@@ -8,13 +8,11 @@ import play.api.http.Writeable
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.api.mvc._
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 import scala.util.Try
 import services.Crypto
 import utils.Implicits.futureWrapper
-import utils.SlickAPI._
 import utils.{DateTime, ErrorStrings}
 
 /**
@@ -25,8 +23,8 @@ trait ApiActionBuilder extends Controller {
 	val app: Provider[Application]
 
 	implicit lazy val ec = app.get.injector.instanceOf[ExecutionContext]
-	lazy val crypto = app.get.injector.instanceOf[Crypto]
-	lazy val cache = app.get.injector.instanceOf[CacheApi]
+	implicit lazy val crypto = app.get.injector.instanceOf[Crypto]
+	implicit lazy val cache = app.get.injector.instanceOf[CacheApi]
 
 	/**
 	  * Serializes Throwable instance into JSON objects.
@@ -96,11 +94,7 @@ trait ApiActionBuilder extends Controller {
 		/** Fetches the user from the request token, if available */
 		private def user[A](implicit request: Request[A]): Future[Option[User]] = {
 			token.flatMap(decode) match {
-				case Some(tok) =>
-					val id = (tok \ "user").as[Int]
-					cache.getOrElse(s"users.$id", 5.minutes) {
-						Users.filter(_.id === id).headOption
-					}
+				case Some(tok) => Users.findById((tok \ "user").as[Int]).map(Some.apply).recover { case _ => None }
 				case None => Future.successful(None)
 			}
 		}
