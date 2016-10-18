@@ -15,10 +15,7 @@ class Location @Inject()(es: ElasticSearch)(implicit val ec: ExecutionContext) {
 			"lastname" -> user.lastname,
 			"username" -> user.username,
 			"mail" -> user.mail,
-			"location" -> Json.obj(
-				"lat" -> lat,
-				"lon" -> lon
-			)
+			"location" -> Json.arr(lon, lat)
 		)).map { _ => () }
 	}
 }
