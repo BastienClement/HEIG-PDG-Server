@@ -6,7 +6,7 @@ import play.api.Application
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Controller, Result}
 import sangria.ast.Document
-import sangria.execution.{ExecutionError, Executor}
+import sangria.execution.{ExecutionError, Executor, QueryReducer, QueryReducingError}
 import sangria.marshalling.playJson._
 import sangria.parser.QueryParser
 import scala.concurrent.Future
@@ -61,6 +61,9 @@ class GraphQLController @Inject() (val app: Provider[Application])
 		case None => readPOST(req)
 	}
 
+	private val rejectComplexQueries = QueryReducer.rejectComplexQueries[Any](1000, (c, ctx) =>
+		new IllegalArgumentException(s"Too complex query"))
+
 	def graphql = ApiAction.async { req =>
 		readQuery(req) match {
 			case Right(GraphQLQuery(Success(query), variables, operation)) =>
@@ -69,9 +72,13 @@ class GraphQLController @Inject() (val app: Provider[Application])
 					query,
 					req,
 					variables = variables.getOrElse(Json.obj()),
-					operationName = operation
+					operationName = operation,
+					queryReducers = List(rejectComplexQueries),
+					maxQueryDepth = Some(7),
+					deferredResolver = resolver
 				).map(obj => Ok(obj)).recover {
 					case e: ExecutionError => UnprocessableEntity('GRAPHQL_BAD_QUERY withDetails e.getMessage)
+					case e: QueryReducingError => UnprocessableEntity('GRAPHQL_BAD_QUERY withDetails e.getMessage)
 				}
 
 			case Right(GraphQLQuery(Failure(e), _, _)) =>

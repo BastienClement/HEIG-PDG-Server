@@ -1,6 +1,7 @@
 package models
 
 import play.api.cache.CacheApi
+import sangria.execution.deferred.HasId
 import sangria.macros.derive.{GraphQLExclude, GraphQLField}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -30,9 +31,15 @@ class Users(tag: Tag) extends Table[User](tag, "users") {
 }
 
 object Users extends TableQuery(new Users(_)) {
+	implicit val UserHasId = HasId[User, Int](_.id)
+
 	def findById(id: Int)(implicit cache: CacheApi): Future[User] = {
 		cache.getOrElse(s"users.$id", 5.minutes) {
 			Users.filter(_.id === id).head
 		}
+	}
+
+	def findByIds(ids: Seq[Int]): Future[Seq[User]] = {
+		Users.filter(_.id inSet ids).run
 	}
 }
