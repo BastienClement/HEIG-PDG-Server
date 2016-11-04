@@ -6,8 +6,8 @@ import utils.SlickAPI._
 
 trait Root extends Domain with Fetch {
 	this: GraphQLController =>
-	val Root = ObjectType[Ctx, Unit](
-		"Root", fields[Ctx, Unit]({
+	val Root = ObjectType("Root",
+		fields[Ctx, Unit]({
 			val Id = Argument("id", OptionInputType(ListInputType(IntType)))
 			val Mail = Argument("mail", OptionInputType(ListInputType(StringType)))
 			val Limit = Argument("limit", OptionInputType(IntType))
@@ -42,8 +42,7 @@ trait Root extends Domain with Fetch {
 					for (mail <- ctx arg Mail) query = query.filter(_.mail === mail)
 					query.headOption
 				})
-		}
-		)
+		})
 	)
 
 	val RootSchema = Schema.apply(Root)
