@@ -53,8 +53,14 @@ trait ApiActionBuilder extends Controller {
 		Some("application/json")
 	)
 
-	implicit class WithCause(val sym: Symbol) {
-		def withCause(t: Throwable): JsObject = writeSymbol(sym) + ("cause" -> serializeThrowable(t))
+	implicit class WithOpsJsObject(val obj: JsObject) {
+		def withCause(t: Throwable): JsObject = obj + ("cause" -> serializeThrowable(t))
+		def withDetails[D](details: D)(implicit wjs: Writes[D]): JsObject = obj + ("details" -> wjs.writes(details))
+	}
+
+	implicit class WithOpsSymbol(val sym: Symbol) {
+		def withCause(t: Throwable): JsObject = writeSymbol(sym) withCause t
+		def withDetails[D: Writes](details: D): JsObject = writeSymbol(sym) withDetails details
 	}
 
 	/** Safely invoke the action constructor and catch potential exceptions */
@@ -122,9 +128,28 @@ trait ApiActionBuilder extends Controller {
 	}
 
 	/** Accessor for queryString parameters */
-	implicit class QueryStringReader(private val req: ApiRequest[_]) {
-		private def map[T](key: String)(mapper: String => Option[T]): Option[T] = req.getQueryString(key).flatMap(mapper)
-		def getQueryStringAsInt(key: String): Option[Int] = map(key) { s => Try(Integer.parseInt(s)).toOption }
+	implicit class QueryStringReaderOps(private val req: Request[_]) {
+		def getQueryStringAs[T](key: String)(implicit qsrm: QueryStringReader[T]): Option[T] = {
+			req.getQueryString(key).flatMap(qsrm.mapper)
+		}
+
+		def getQueryStringAsInt(key: String): Option[Int] = getQueryStringAs[Int](key)
+		def getQueryStringAsDouble(key: String): Option[Double] = getQueryStringAs[Double](key)
+	}
+
+	case class QueryStringReader[T](mapper: String => Option[T])
+	object QueryStringReader {
+		private def unsafeWrapper[T](mapper: String => T) = QueryStringReader[T](s => Try(mapper(s)).toOption)
+
+		implicit val stringMapper: QueryStringReader[String] = QueryStringReader(Some.apply)
+		implicit val intMapper: QueryStringReader[Int] = unsafeWrapper(_.toInt)
+		implicit val doubleMapper: QueryStringReader[Double] = unsafeWrapper(_.toDouble)
+	}
+
+	private def Unprocessable: Nothing = throw ApiException('UNPROCESSABLE_ENTITY, UnprocessableEntity)
+
+	def param[T: Reads : QueryStringReader](name: String, default: => T = Unprocessable)(implicit req: Request[AnyContent]): T = {
+		req.body.asJson.flatMap(b => (b \ name).asOpt[T]).orElse { req.getQueryStringAs[T](name) }.getOrElse(default)
 	}
 
 	/** A placeholder for not implemented actions */
