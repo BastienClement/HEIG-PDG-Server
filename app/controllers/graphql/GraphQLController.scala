@@ -11,9 +11,10 @@ import sangria.marshalling.playJson._
 import sangria.parser.QueryParser
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
+import services.ElasticSearch
 
 @Singleton
-class GraphQLController @Inject() (val app: Provider[Application])
+class GraphQLController @Inject() (val app: Provider[Application])(implicit val es: ElasticSearch)
 		extends Controller with Root with ApiActionBuilder {
 	private val BAD_QUERY_JSON = UnprocessableEntity('GRAPHQL_BAD_QUERY withDetails "Failed to read query from JSON")
 	private val BAD_QUERY_GRQL = UnprocessableEntity('GRAPHQL_BAD_QUERY withDetails "Empty request body")

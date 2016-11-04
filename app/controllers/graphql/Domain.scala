@@ -24,8 +24,11 @@ trait Domain { this: GraphQLController =>
 				env.ctx.userOpt.collect { case user if user.admin => env.value.rank }
 			}),
 			Field("admin", BooleanType, resolve = _.value.admin),
-			Field("location", ListType(FloatType), resolve = env => {
-				env.value.location match { case (lon, lat) => Seq(lon, lat)}
+			Field("location", OptionType(ListType(FloatType)), resolve = env => {
+				env.value.location.map {
+					case Some((a, b)) => Some(Seq(a, b))
+					case _ => None
+				}
 			})
 		)
 	)
