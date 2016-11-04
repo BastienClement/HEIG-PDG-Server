@@ -13,8 +13,13 @@ PATCH         /events/:id                 controllers.DummyController.nyi1(id)
 DELETE        /events/:id                 controllers.DummyController.nyi1(id)
 
 GET           /users                      controllers.UsersController.list
+POST          /users/search               controllers.UsersController.search
 GET           /users/:uid                 controllers.UsersController.user(uid)
 PUT           /users/:uid/location        controllers.UsersController.location(uid)
+
+# GraphQL
+GET           /graphql                    controllers.graphql.GraphQLController.graphql
+POST          /graphql                    controllers.graphql.GraphQLController.graphql
 
 # Server status
 GET           /status                     controllers.DummyController.status

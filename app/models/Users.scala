@@ -1,15 +1,20 @@
 package models
 
 import play.api.cache.CacheApi
+import sangria.macros.derive.{GraphQLExclude, GraphQLField}
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import utils.UsingImplicits
 import utils.SlickAPI._
+import utils.UsingImplicits
 
 case class User(
 		id: Int, firstname: String, lastname: String, username: String,
-		mail: String, pass: String, rank: Int) extends UsingImplicits[Users] {
+		mail: String, @GraphQLExclude pass: String, rank: Int) extends UsingImplicits[Users] {
+
+	@GraphQLField
 	final def admin: Boolean = rank == 0
+
+	def location: (Double, Double) = ???
 }
 
 class Users(tag: Tag) extends Table[User](tag, "users") {

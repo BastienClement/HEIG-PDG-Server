@@ -4,9 +4,10 @@ import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.{ApiActionBuilder, ApiException, ApiRequest}
 import models.User
 import play.api.Application
+import play.api.libs.json.Json
 import play.api.mvc.Controller
 import scala.util.Try
-import services.Location
+import services.{ElasticSearch, Location}
 import utils.Implicits.safeJsReadTyping
 
 /**
@@ -16,7 +17,7 @@ import utils.Implicits.safeJsReadTyping
   * @param loc the Location service
   */
 @Singleton
-class UsersController @Inject() (val app: Provider[Application], val loc: Location)
+class UsersController @Inject() (val app: Provider[Application], val loc: Location, val es: ElasticSearch)
 		extends Controller with ApiActionBuilder {
 	/**
 	  * Extracts the numeric user ID from the given URI parameter.
@@ -77,11 +78,23 @@ class UsersController @Inject() (val app: Provider[Application], val loc: Locati
 	  *
 	  * @param uid the user id or the keyword "self"
 	  */
-	def location(uid: String) = AuthApiAction.async(parse.json) { implicit req =>
+	def location(uid: String) = AuthApiAction.async { implicit req =>
 		requireSelf(uid) { user =>
-			val lat = (req.body \ "lat").to[Double]
-			val lon = (req.body \ "lon").to[Double]
+			val lat = param[Double]("lat")
+			val lon = param[Double]("lon")
 			loc.updateUser(user, lat, lon)
 		}.map { _ => NoContent }
+	}
+
+	def search = AuthApiAction.async(parse.json) { implicit req =>
+		val nearbyFilters = (req.body \ "nearby").toOption.map { nearby =>
+			val lat = (nearby \ "lat").to[Double]
+			val lon = (nearby \ "lon").to[Double]
+			val radius = (nearby \ "radius").asOpt[Int].getOrElse(5)
+			val unit = (nearby \ "unit").asOpt[String].getOrElse("km")
+			Json.arr(lat, lon, radius, unit)
+		}
+
+		???
 	}
 }
