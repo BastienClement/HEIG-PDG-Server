@@ -12,7 +12,7 @@ class ElasticSearch @Inject() (conf: Configuration, ws: WSClient) {
 	@inline final def apply(url: String): WSRequest = ws.url(s"$esBase$url")
 
 	def get(url: String): Future[WSResponse] = apply(url).get()
-	def delete[T: Writeable](url: String): Future[WSResponse] = apply(url).delete()
+	def delete(url: String): Future[WSResponse] = apply(url).delete()
 	def post[T: Writeable](url: String, body: T): Future[WSResponse] = apply(url).post(body)
 	def put[T: Writeable](url: String, body: T): Future[WSResponse] = apply(url).put(body)
 }

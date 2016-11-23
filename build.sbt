@@ -26,3 +26,5 @@ libraryDependencies ++= Seq(
 )
 
 dockerExposedPorts := Seq(9000)
+
+fork in run := true

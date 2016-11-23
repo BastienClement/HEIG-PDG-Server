@@ -18,8 +18,8 @@ GET           /users/:uid                 controllers.UsersController.user(uid)
 PUT           /users/:uid/location        controllers.UsersController.location(uid)
 
 # GraphQL
-GET           /graphql                    controllers.graphql.GraphQLController.graphql
-POST          /graphql                    controllers.graphql.GraphQLController.graphql
+GET           /graphql                    controllers.GraphQLController.query
+POST          /graphql                    controllers.GraphQLController.query
 
 # Server status
 GET           /status                     controllers.DummyController.status
