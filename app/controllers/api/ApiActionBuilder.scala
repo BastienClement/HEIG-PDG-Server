@@ -1,6 +1,7 @@
 package controllers.api
 
 import com.google.inject.Provider
+import gql.Ctx
 import models.{User, Users}
 import play.api.Application
 import play.api.cache.CacheApi
@@ -14,6 +15,7 @@ import scala.util.Try
 import services.Crypto
 import utils.Implicits.futureWrapper
 import utils.{DateTime, ErrorStrings}
+import utils.SlickAPI._
 
 /**
   * Mixin trait for API controllers.
@@ -100,7 +102,7 @@ trait ApiActionBuilder extends Controller {
 		/** Fetches the user from the request token, if available */
 		private def user[A](implicit request: Request[A]): Future[Option[User]] = {
 			token.flatMap(decode) match {
-				case Some(tok) => Users.findById((tok \ "user").as[Int]).map(Some.apply).recover { case _ => None }
+				case Some(tok) => Users.findById((tok \ "user").as[Int]).headOption
 				case None => Future.successful(None)
 			}
 		}
@@ -154,4 +156,7 @@ trait ApiActionBuilder extends Controller {
 
 	/** A placeholder for not implemented actions */
 	def NotYetImplemented = Action { req => NotImplemented('NOT_YET_IMPLEMENTED) }
+
+	/** Automatic GraphQL Ctx construction */
+	implicit def implicitGraphQLContext(implicit req: ApiRequest[_]): Ctx = Ctx(req.userOpt)
 }

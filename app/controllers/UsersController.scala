@@ -2,13 +2,14 @@ package controllers
 
 import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.{ApiActionBuilder, ApiException, ApiRequest}
+import gql.{GraphQL, QueryExecutor}
 import models.User
 import play.api.Application
-import play.api.libs.json.Json
+import play.api.libs.json.{JsArray, JsObject}
 import play.api.mvc.Controller
+import sangria.macros._
 import scala.util.Try
-import services.{ElasticSearch, Location}
-import utils.Implicits.safeJsReadTyping
+import services.LocationService
 
 /**
   * The controller handing user-related operations.
@@ -17,7 +18,8 @@ import utils.Implicits.safeJsReadTyping
   * @param loc the Location service
   */
 @Singleton
-class UsersController @Inject() (val app: Provider[Application], val loc: Location, val es: ElasticSearch)
+class UsersController @Inject() (val app: Provider[Application], loc: LocationService)
+		(implicit gql: GraphQL)
 		extends Controller with ApiActionBuilder {
 	/**
 	  * Extracts the numeric user ID from the given URI parameter.
@@ -62,15 +64,25 @@ class UsersController @Inject() (val app: Provider[Application], val loc: Locati
 	/**
 	  * Returns the list of users matching the given filters.
 	  */
-	def list = NotYetImplemented
+	def list = ApiAction.async { implicit req =>
+		graphql"""
+			{ users { id, username } }
+	   """.execute().map { data => Ok((data \ "users").as[JsArray]) }
+	}
 
 	/**
 	  * Returns user information.
 	  *
 	  * @param user the user id or the keyword "self"
 	  */
-	def user(user: String) = ApiAction.async { req =>
-		NotYetImplemented(req)
+	def user(user: String) = ApiAction.async { implicit req =>
+		graphql"""
+			query SingleUser($$id: Int) {
+				user(id: $$id) { id, username, firstname, lastname, mail, admin }
+			}
+	   """.execute("id" -> userId(user)).map { data =>
+			(data \ "user").asOpt[JsObject].map(Ok(_)).getOrElse(NotFound('USERS_USER_NOT_FOUND))
+		}
 	}
 
 	/**
@@ -86,15 +98,5 @@ class UsersController @Inject() (val app: Provider[Application], val loc: Locati
 		}.map { _ => NoContent }
 	}
 
-	def search = AuthApiAction.async(parse.json) { implicit req =>
-		val nearbyFilters = (req.body \ "nearby").toOption.map { nearby =>
-			val lat = (nearby \ "lat").to[Double]
-			val lon = (nearby \ "lon").to[Double]
-			val radius = (nearby \ "radius").asOpt[Int].getOrElse(5)
-			val unit = (nearby \ "unit").asOpt[String].getOrElse("km")
-			Json.arr(lat, lon, radius, unit)
-		}
-
-		???
-	}
+	def search = NotYetImplemented
 }
