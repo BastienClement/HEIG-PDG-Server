@@ -1,6 +1,7 @@
 package models
 
 import models.Users.UserView
+import play.api.libs.json._
 import sangria.execution.deferred.HasId
 import scala.concurrent.Future
 import services.LocationService
@@ -39,22 +40,34 @@ object Users extends TableQuery(new Users(_)) {
 	}
 
 	class UserView(val user: User) {
-		private def filter[T](valid: User => Boolean)(value: => T)(implicit other: Option[User]): Option[T] = {
-			if (other.exists(valid)) Some(value) else None
+		private def filter[T](valid: User => Boolean)(value: => T)(implicit other: User): Option[T] = {
+			if (valid(other)) Some(value) else None
 		}
 
-		private val admin = (other: User) => other.admin
-		private val friend = (other: User) => other.admin || ???
+		private val otherAdmin = (other: User) => other.admin
+		private val otherFriend = (other: User) => other.admin || ???
 
 		def id: Int = user.id
 		def username: String = user.username
-		def firstname(implicit other: Option[User]): Option[String] = filter(friend) { user.lastname }
-		def lastname(implicit other: Option[User]): Option[String] = filter(friend) { user.lastname }
-		def mail(implicit other: Option[User]): Option[String] = filter(admin) { user.mail }
-		def rank(implicit other: Option[User]): Option[Int] = filter(admin) { user.rank }
-		def location(implicit other: Option[User], ls: LocationService): Future[Option[Coordinates]] = {
-			filter(friend) { user.location }.getOrElse(Future.successful(None))
+		def firstname(implicit other: User): Option[String] = filter(otherFriend) { user.lastname }
+		def lastname(implicit other: User): Option[String] = filter(otherFriend) { user.lastname }
+		def mail(implicit other: User): Option[String] = filter(otherAdmin) { user.mail }
+		def rank(implicit other: User): Option[Int] = filter(otherAdmin) { user.rank }
+		def admin: Boolean = user.rank == Rank.Admin
+		def location(implicit other: User, ls: LocationService): Future[Option[Coordinates]] = {
+			filter(otherFriend) { user.location }.getOrElse(Future.successful(None))
 		}
+	}
+
+	implicit def UserViewFormat(implicit user: User): Writes[UserView] = new Writes[UserView] {
+		def writes(u: UserView): JsValue = Json.obj(
+			"id" -> u.id,
+			"username" -> u.username,
+			"firstname" -> u.firstname,
+			"lastname" -> u.lastname,
+			"mail" -> u.mail,
+			"admin" -> u.admin
+		)
 	}
 
 	def findById(id: Int): Query[Users, User, Seq] = Users.filter(_.id === id)

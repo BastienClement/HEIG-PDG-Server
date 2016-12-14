@@ -1,7 +1,6 @@
 package controllers.api
 
 import com.google.inject.Provider
-import gql.Ctx
 import models.{User, Users}
 import play.api.Application
 import play.api.cache.CacheApi
@@ -157,6 +156,9 @@ trait ApiActionBuilder extends Controller {
 	/** A placeholder for not implemented actions */
 	def NotYetImplemented = Action { req => NotImplemented('NOT_YET_IMPLEMENTED) }
 
-	/** Automatic GraphQL Ctx construction */
-	implicit def implicitGraphQLContext(implicit req: ApiRequest[_]): Ctx = Ctx(req.userOpt)
+	protected implicit def implicitUserFromRequest(implicit req: ApiRequest[_]): User = req.user
+
+	implicit def writableJson[A: Writes](implicit codec: Codec): Writeable[A] = {
+		Writeable[A]((a: A) => codec.encode(Json.toJson(a).toString), Some("application/json"))
+	}
 }

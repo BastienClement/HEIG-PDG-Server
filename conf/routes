@@ -5,21 +5,17 @@ POST          /auth/token                 controllers.AuthController.token
 POST          /auth/extend                controllers.AuthController.extend
 POST          /auth/hash                  controllers.AuthController.hash
 
-GET           /events                     controllers.DummyController.nyi0
-POST          /events                     controllers.DummyController.nyi0
+GET           /events                     controllers.EventsController.list
+POST          /events                     controllers.EventsController.create
 
-GET           /events/:id                 controllers.DummyController.nyi1(id)
+GET           /events/:id                 controllers.EventsController.get(id: Int)
 PATCH         /events/:id                 controllers.DummyController.nyi1(id)
 DELETE        /events/:id                 controllers.DummyController.nyi1(id)
 
 GET           /users                      controllers.UsersController.list
 POST          /users/search               controllers.UsersController.search
 GET           /users/:uid                 controllers.UsersController.user(uid)
-PUT           /users/:uid/location        controllers.UsersController.location(uid)
-
-# GraphQL
-GET           /graphql                    controllers.GraphQLController.query
-POST          /graphql                    controllers.GraphQLController.query
+PUT           /users/self/location        controllers.UsersController.location
 
 # Server status
 GET           /status                     controllers.DummyController.status
