@@ -3,10 +3,10 @@ package utils
 import com.google.inject.Inject
 import play.api.db.slick.DatabaseConfigProvider
 import scala.concurrent.ExecutionContext
-import slick.driver.{JdbcProfile, MySQLDriver}
+import slick.driver.{JdbcProfile, PostgresDriver}
 import slick.lifted.AppliedCompiledFunction
 
-object SlickAPI extends MySQLDriver.API {
+object SlickAPI extends PostgresDriver.API {
 	@Inject private var dbc: DatabaseConfigProvider = _
 	private lazy val DB = dbc.get[JdbcProfile].db
 

@@ -2,7 +2,6 @@ package models
 
 import models.Users.UserView
 import play.api.libs.json._
-import sangria.execution.deferred.HasId
 import scala.concurrent.Future
 import services.LocationService
 import utils.SlickAPI._
@@ -30,8 +29,6 @@ class Users(tag: Tag) extends Table[User](tag, "users") {
 }
 
 object Users extends TableQuery(new Users(_)) {
-	implicit val UserHasId = HasId[User, Int](_.id)
-
 	object Rank {
 		final val Admin = 0
 		final val User = 3
