@@ -119,7 +119,8 @@ object Users extends TableQuery(new Users(_)) {
 			"firstname" -> u.firstname,
 			"lastname" -> u.lastname,
 			"mail" -> u.mail,
-			"admin" -> u.admin
+			"admin" -> u.admin,
+			"location" -> u.location
 		)
 	}
 
