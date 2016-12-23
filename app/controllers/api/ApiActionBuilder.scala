@@ -82,15 +82,18 @@ trait ApiActionBuilder extends Controller {
 
 	/** An API action */
 	object ApiAction extends ActionBuilder[ApiRequest] {
+		/** Parses the Authorization header */
+		private def parseAuthorization(header: String): Option[String] = {
+			if (header.toLowerCase.startsWith("token ")) Some(header.substring(6).trim)
+			else None
+		}
+
 		/** Returns the token from the Authorization header or query string parameter */
 		private def token[A](implicit request: Request[A]): Option[String] = {
-			request.getQueryString("token").orElse {
-				request.headers.get("Authorization").collect {
-					case auth if auth.toLowerCase.startsWith("token ") => auth.substring(6).trim
-				}
-			}.orElse {
-				request.headers.get("X-Auth-Token")
-			}
+			def queryString = request.getQueryString("token")
+			def authorization = request.headers.get("Authorization").flatMap(parseAuthorization)
+			def header = request.headers.get("X-Auth-Token")
+			queryString orElse authorization orElse header
 		}
 
 		/** Decodes the token string and validates expiration date */
