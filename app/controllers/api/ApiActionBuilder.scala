@@ -10,8 +10,9 @@ import play.api.libs.json._
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 import scala.util.Try
-import services.Crypto
+import services.{Crypto, FriendshipService}
 import utils.Implicits.futureWrapper
 import utils.{DateTime, ErrorStrings}
 import utils.SlickAPI._
@@ -22,10 +23,12 @@ import utils.SlickAPI._
   */
 trait ApiActionBuilder extends Controller {
 	val app: Provider[Application]
+	private def pull[T: ClassTag]: T = app.get.injector.instanceOf[T]
 
-	implicit lazy val ec = app.get.injector.instanceOf[ExecutionContext]
-	implicit lazy val crypto = app.get.injector.instanceOf[Crypto]
-	implicit lazy val cache = app.get.injector.instanceOf[CacheApi]
+	implicit lazy val ec = pull[ExecutionContext]
+	implicit lazy val crypto = pull[Crypto]
+	implicit lazy val cache = pull[CacheApi]
+	implicit lazy val fs = pull[FriendshipService]
 
 	/**
 	  * Serializes Throwable instance into JSON objects.
@@ -156,7 +159,10 @@ trait ApiActionBuilder extends Controller {
 	/** A placeholder for not implemented actions */
 	def NotYetImplemented = Action { req => NotImplemented('NOT_YET_IMPLEMENTED) }
 
-	protected implicit def implicitUserFromRequest(implicit req: ApiRequest[_]): User = req.user
+	/** Implicitly construct a PointOfView as the user issuing the request. */
+	protected implicit def implicitPointOfViewFromRequest(implicit req: ApiRequest[_]): Users.PointOfView = {
+		new Users.PointOfView(req.user)
+	}
 
 	implicit def writableJson[A: Writes](implicit codec: Codec): Writeable[A] = {
 		Writeable[A]((a: A) => codec.encode(Json.toJson(a).toString), Some("application/json"))

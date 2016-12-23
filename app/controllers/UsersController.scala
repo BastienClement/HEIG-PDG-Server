@@ -65,7 +65,7 @@ class UsersController @Inject() (loc: LocationService)
 	  */
 	def list = AuthApiAction.async { implicit req =>
 		Users.sortBy(u => u.id).run.map { users =>
-			Ok(Json.toJson(users.map(_.view)))
+			Ok(Json.toJson(users))
 		}
 	}
 
@@ -76,7 +76,7 @@ class UsersController @Inject() (loc: LocationService)
 	  */
 	def user(user: String) = AuthApiAction.async { implicit req =>
 		Users.findById(userId(user)).headOption.map { optUser =>
-			optUser.map(u => Ok(Json.toJson(u.view))).getOrElse(NotFound('USERS_USER_NOT_FOUND))
+			optUser.map(u => Ok(Json.toJson(u))).getOrElse(NotFound('USERS_USER_NOT_FOUND))
 		}
 	}
 

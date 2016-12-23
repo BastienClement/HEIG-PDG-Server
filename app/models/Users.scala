@@ -2,20 +2,42 @@ package models
 
 import models.Users.UserView
 import play.api.libs.json._
-import scala.concurrent.Future
-import services.LocationService
+import services.FriendshipService
 import utils.SlickAPI._
 import utils.{Coordinates, UsingImplicits}
 
-case class User(
-		id: Int, firstname: String, lastname: String, username: String,
-		mail: String, pass: String, rank: Int) extends UsingImplicits[Users] {
-
+/**
+  * An Eventail user.
+  *
+  * @param id        the user's id
+  * @param firstname the user's firstname
+  * @param lastname  the user's lastname
+  * @param username  the user's display name
+  * @param mail      the user's e-mail address
+  * @param pass      the user's password
+  * @param rank      the user's rank index
+  * @param lat       the user's current latitude
+  * @param lng       the user's current longitude
+  */
+case class User(id: Int, firstname: String, lastname: String, username: String,
+                mail: String, pass: String, rank: Int, lat: Double, lng: Double) extends UsingImplicits[Users] {
+	/** Whether the user is an administrator user. */
 	def admin: Boolean = rank == Users.Rank.Admin
-	def location(implicit ls: LocationService): Future[Option[Coordinates]] = ls.locationForUser(id)
-	lazy val view = new UserView(this)
+
+	/** The current user's location, if available. */
+	def location: Option[Coordinates] = Some(Coordinates(lat, lng))
+
+	/**
+	  * Constructs a new view of this user from an available implicit point of view.
+	  *
+	  * @param pov the point of view
+	  * @param fs  an instance of the friendship service
+	  * @return a new view of this user, from the given point of view
+	  */
+	def view(implicit pov: Users.PointOfView, fs: FriendshipService) = new UserView(this)
 }
 
+//noinspection TypeAnnotation
 class Users(tag: Tag) extends Table[User](tag, "users") {
 	def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
 	def firstname = column[String]("firstname")
@@ -24,11 +46,16 @@ class Users(tag: Tag) extends Table[User](tag, "users") {
 	def mail = column[String]("mail")
 	def pass = column[String]("pass")
 	def rank = column[Int]("rank")
+	def lat = column[Double]("lat")
+	def lng = column[Double]("lng")
 
-	def * = (id, firstname, lastname, username, mail, pass, rank) <> (User.tupled, User.unapply)
+	def * = (id, firstname, lastname, username, mail, pass, rank, lat, lng) <> (User.tupled, User.unapply)
 }
 
 object Users extends TableQuery(new Users(_)) {
+	/**
+	  * Rank values
+	  */
 	object Rank {
 		final val Admin = 0
 		final val User = 3
@@ -36,27 +63,56 @@ object Users extends TableQuery(new Users(_)) {
 		final val Banned = 10
 	}
 
-	class UserView(val user: User) {
-		private def filter[T](valid: User => Boolean)(value: => T)(implicit other: User): Option[T] = {
-			if (valid(other)) Some(value) else None
-		}
+	/**
+	  * A point of view from which a User is viewed.
+	  *
+	  * @param user the user viewing the other user
+	  */
+	class PointOfView(val user: User) extends AnyVal {
+		/** Whether the point of view is an admin user. */
+		def admin: Boolean = user.admin
 
-		private val otherAdmin = (other: User) => other.admin
-		private val otherFriend = (other: User) => other.admin || ???
-
-		def id: Int = user.id
-		def username: String = user.username
-		def firstname(implicit other: User): Option[String] = filter(otherFriend) { user.lastname }
-		def lastname(implicit other: User): Option[String] = filter(otherFriend) { user.lastname }
-		def mail(implicit other: User): Option[String] = filter(otherAdmin) { user.mail }
-		def rank(implicit other: User): Option[Int] = filter(otherAdmin) { user.rank }
-		def admin: Boolean = user.rank == Rank.Admin
-		def location(implicit other: User, ls: LocationService): Future[Option[Coordinates]] = {
-			filter(otherFriend) { user.location }.getOrElse(Future.successful(None))
-		}
+		/** Whether the point of view is an admin or friend user. */
+		def friend(target: User)(implicit fs: FriendshipService): Boolean = admin || fs.friends(user.id, target.id)
 	}
 
-	implicit def UserViewFormat(implicit user: User): Writes[UserView] = new Writes[UserView] {
+	/**
+	  * A view of a User instance from a specific PointOfView.
+	  *
+	  * @param user the user being viewed
+	  * @param pov  the point of view from which the user is being viewed
+	  * @param fs   the friendship service
+	  */
+	class UserView(val user: User)(implicit pov: PointOfView, fs: FriendshipService) {
+		/**
+		  * Filtrates a field, exposing its value only if the condition is true.
+		  *
+		  * @param condition the condition
+		  * @param value     the value to filter
+		  * @tparam T the type of the value
+		  * @return the filtered value
+		  */
+		private def filter[T](condition: Boolean, value: => T): Option[T] = {
+			if (condition) Some(value)
+			else None
+		}
+
+		private val isAdmin: Boolean = pov.admin
+		private val isFriend: Boolean = pov.friend(user)
+
+		// Proxies and filters to the source user object
+		def id: Int = user.id
+		def username: String = user.username
+		def firstname: Option[String] = filter(isFriend, user.lastname)
+		def lastname: Option[String] = filter(isFriend, user.lastname)
+		def mail: Option[String] = filter(isAdmin, user.mail)
+		def rank: Option[Int] = filter(isAdmin, user.rank)
+		def admin: Boolean = user.admin
+		def location: Option[Coordinates] = filter(isFriend, user.location).flatten
+	}
+
+	/** Implicit Writes instance for an UserView */
+	implicit def UserViewWrites: Writes[UserView] = new Writes[UserView] {
 		def writes(u: UserView): JsValue = Json.obj(
 			"id" -> u.id,
 			"username" -> u.username,
@@ -65,6 +121,11 @@ object Users extends TableQuery(new Users(_)) {
 			"mail" -> u.mail,
 			"admin" -> u.admin
 		)
+	}
+
+	/** Implicitly provide a Writes[User] if a PointOfView is available. */
+	implicit def UserWrites(implicit pov: PointOfView, fs: FriendshipService): Writes[User] = new Writes[User] {
+		def writes(user: User): JsValue = UserViewWrites.writes(user.view)
 	}
 
 	def findById(id: Int): Query[Users, User, Seq] = Users.filter(_.id === id)
