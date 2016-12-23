@@ -2,8 +2,8 @@
 
 # Authentication
 POST          /auth/token                 controllers.AuthController.token
+POST          /auth/launch                controllers.AuthController.launch
 POST          /auth/extend                controllers.AuthController.extend
-POST          /auth/hash                  controllers.AuthController.hash
 
 GET           /events                     controllers.EventsController.list
 POST          /events                     controllers.EventsController.create

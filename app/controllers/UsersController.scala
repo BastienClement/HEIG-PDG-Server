@@ -3,6 +3,7 @@ package controllers
 import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.{ApiActionBuilder, ApiException, ApiRequest}
 import models.{User, Users}
+import org.apache.commons.codec.digest.DigestUtils
 import play.api.Application
 import play.api.libs.json.Json
 import play.api.mvc.Controller
@@ -84,7 +85,10 @@ class UsersController @Inject() (users: UserService)
 	def location = AuthApiAction.async { implicit req =>
 		val lat = param[Double]("lat")
 		val lon = param[Double]("lon")
-		users.updateLocation(req.user.id, (lat, lon)).replace(NoContent)
+		users.updateLocation(req.user.id, (lat, lon), req.token).map {
+			case true => NoContent
+			case false => Conflict
+		}
 	}
 
 	def search = NotYetImplemented
