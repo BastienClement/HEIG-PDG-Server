@@ -164,6 +164,10 @@ trait ApiActionBuilder extends Controller {
 		new Users.PointOfView(req.user)
 	}
 
+	implicit class SimpleFutureRecovery[T](private val future: Future[T]) {
+		def orElse[U >: T](value: => U): Future[U] = future.recover { case _ => value }
+	}
+
 	implicit def writableJson[A: Writes](implicit codec: Codec): Writeable[A] = {
 		Writeable[A]((a: A) => codec.encode(Json.toJson(a).toString), Some("application/json"))
 	}

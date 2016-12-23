@@ -7,7 +7,7 @@ import play.api.Application
 import play.api.libs.json.Json
 import play.api.mvc.Controller
 import scala.util.Try
-import services.LocationService
+import services.{LocationService, UserService}
 import utils.SlickAPI._
 
 /**
@@ -17,7 +17,7 @@ import utils.SlickAPI._
   * @param app the Play application instance
   */
 @Singleton
-class UsersController @Inject() (loc: LocationService)
+class UsersController @Inject() (users: UserService, loc: LocationService)
                                 (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
@@ -75,9 +75,7 @@ class UsersController @Inject() (loc: LocationService)
 	  * @param user the user id or the keyword "self"
 	  */
 	def user(user: String) = AuthApiAction.async { implicit req =>
-		Users.findById(userId(user)).headOption.map { optUser =>
-			optUser.map(u => Ok(Json.toJson(u))).getOrElse(NotFound('USERS_USER_NOT_FOUND))
-		}
+		users.get(userId(user)).map(u => Ok(Json.toJson(u))).orElse(NotFound('USERS_USER_NOT_FOUND))
 	}
 
 	/**
