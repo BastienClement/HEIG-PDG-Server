@@ -3,9 +3,8 @@ package controllers
 import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.{ApiActionBuilder, ApiException, ApiRequest}
 import models.{User, Users}
-import org.apache.commons.codec.digest.DigestUtils
 import play.api.Application
-import play.api.libs.json.Json
+import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
 import scala.util.Try
 import services.UserService
@@ -32,7 +31,7 @@ class UsersController @Inject() (users: UserService)
 	  * @return the corresponding numeric user ID
 	  */
 	private def userId[A](uid: String, selfOnly: Boolean = false, strict: Boolean = false)
-			(implicit req: ApiRequest[A]): Int = {
+	                     (implicit req: ApiRequest[A]): Int = {
 		uid match {
 			case "self" => req.user.id
 			case _ =>
@@ -88,6 +87,15 @@ class UsersController @Inject() (users: UserService)
 		users.updateLocation(req.user.id, (lat, lon), req.token).map {
 			case true => NoContent
 			case false => Conflict
+		}
+	}
+
+	def nearby(lat: Double, lon: Double, radius: Double, all: Boolean) = AuthApiAction.async { implicit req =>
+		users.nearby((lat, lon), radius, all).map { users =>
+			val combined = users.map { case (user, distance) =>
+				Json.toJson(user).as[JsObject] + ("distance" -> JsNumber(distance))
+			}
+			Ok(Json.toJson(combined))
 		}
 	}
 

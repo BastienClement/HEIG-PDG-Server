@@ -3,6 +3,7 @@ package models
 import models.Users.UserView
 import play.api.libs.json._
 import services.FriendshipService
+import slick.jdbc.GetResult
 import utils.SlickAPI._
 import utils.{Coordinates, UsingImplicits}
 
@@ -14,7 +15,6 @@ import utils.{Coordinates, UsingImplicits}
   * @param lastname  the user's lastname
   * @param username  the user's display name
   * @param mail      the user's e-mail address
-  * @param pass      the user's password
   * @param rank      the user's rank index
   * @param lat       the user's current latitude
   * @param lon       the user's current longitude
@@ -31,10 +31,9 @@ case class User(id: Int, firstname: String, lastname: String, username: String,
 	  * Constructs a new view of this user from an available implicit point of view.
 	  *
 	  * @param pov the point of view
-	  * @param fs  an instance of the friendship service
 	  * @return a new view of this user, from the given point of view
 	  */
-	def view(implicit pov: Users.PointOfView, fs: FriendshipService) = new UserView(this)
+	def view(implicit pov: Users.PointOfView) = new UserView(this)
 }
 
 //noinspection TypeAnnotation
@@ -55,9 +54,14 @@ class Users(tag: Tag) extends Table[User](tag, "users") {
 }
 
 object Users extends TableQuery(new Users(_)) {
-	/**
-	  * Rank values
-	  */
+	/** Raw SQL User reader */
+	implicit val UserGetResult = GetResult { r =>
+		val user = User(r.<<, r.<<, r.<<, r.<<, r.<<, r.skip.<<, r.<<, r.<<)
+		r.skip
+		user
+	}
+
+	/** Rank values */
 	object Rank {
 		final val Admin = 0
 		final val User = 3
@@ -69,13 +73,14 @@ object Users extends TableQuery(new Users(_)) {
 	  * A point of view from which a User is viewed.
 	  *
 	  * @param user the user viewing the other user
+	  * @param fs   the friendship service
 	  */
-	class PointOfView(val user: User) extends AnyVal {
+	class PointOfView(val user: User)(implicit fs: FriendshipService) {
 		/** Whether the point of view is an admin user. */
 		def admin: Boolean = user.admin
 
 		/** Whether the point of view is an admin or friend user. */
-		def friend(target: User)(implicit fs: FriendshipService): Boolean = admin || fs.friends(user.id, target.id)
+		def friend(target: User): Boolean = admin || fs.friends(user.id, target.id)
 	}
 
 	/**
@@ -83,9 +88,8 @@ object Users extends TableQuery(new Users(_)) {
 	  *
 	  * @param user the user being viewed
 	  * @param pov  the point of view from which the user is being viewed
-	  * @param fs   the friendship service
 	  */
-	class UserView(val user: User)(implicit pov: PointOfView, fs: FriendshipService) {
+	class UserView(val user: User)(implicit pov: PointOfView) {
 		/**
 		  * Filtrates a field, exposing its value only if the condition is true.
 		  *
@@ -127,7 +131,7 @@ object Users extends TableQuery(new Users(_)) {
 	}
 
 	/** Implicitly provide a Writes[User] if a PointOfView is available. */
-	implicit def UserWrites(implicit pov: PointOfView, fs: FriendshipService): Writes[User] = new Writes[User] {
+	implicit def UserWrites(implicit pov: PointOfView): Writes[User] = new Writes[User] {
 		def writes(user: User): JsValue = UserViewWrites.writes(user.view)
 	}
 
