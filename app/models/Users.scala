@@ -17,15 +17,15 @@ import utils.{Coordinates, UsingImplicits}
   * @param pass      the user's password
   * @param rank      the user's rank index
   * @param lat       the user's current latitude
-  * @param lng       the user's current longitude
+  * @param lon       the user's current longitude
   */
 case class User(id: Int, firstname: String, lastname: String, username: String,
-                mail: String, pass: String, rank: Int, lat: Double, lng: Double) extends UsingImplicits[Users] {
+                mail: String, pass: String, rank: Int, lat: Double, lon: Double) extends UsingImplicits[Users] {
 	/** Whether the user is an administrator user. */
 	def admin: Boolean = rank == Users.Rank.Admin
 
 	/** The current user's location, if available. */
-	def location: Option[Coordinates] = Some(Coordinates(lat, lng))
+	def location: Option[Coordinates] = Some(Coordinates(lat, lon))
 
 	/**
 	  * Constructs a new view of this user from an available implicit point of view.
@@ -47,9 +47,9 @@ class Users(tag: Tag) extends Table[User](tag, "users") {
 	def pass = column[String]("pass")
 	def rank = column[Int]("rank")
 	def lat = column[Double]("lat")
-	def lng = column[Double]("lng")
+	def lon = column[Double]("lon")
 
-	def * = (id, firstname, lastname, username, mail, pass, rank, lat, lng) <> (User.tupled, User.unapply)
+	def * = (id, firstname, lastname, username, mail, pass, rank, lat, lon) <> (User.tupled, User.unapply)
 }
 
 object Users extends TableQuery(new Users(_)) {
