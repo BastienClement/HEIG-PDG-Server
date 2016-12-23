@@ -7,7 +7,7 @@ import play.api.Application
 import play.api.libs.json.Json
 import play.api.mvc.Controller
 import scala.util.Try
-import services.{LocationService, UserService}
+import services.UserService
 import utils.SlickAPI._
 
 /**
@@ -17,7 +17,7 @@ import utils.SlickAPI._
   * @param app the Play application instance
   */
 @Singleton
-class UsersController @Inject() (users: UserService, loc: LocationService)
+class UsersController @Inject() (users: UserService)
                                 (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
@@ -84,7 +84,7 @@ class UsersController @Inject() (users: UserService, loc: LocationService)
 	def location = AuthApiAction.async { implicit req =>
 		val lat = param[Double]("lat")
 		val lon = param[Double]("lon")
-		loc.updateUser(req.user, lat, lon).map { _ => NoContent }
+		users.updateLocation(req.user.id, (lat, lon)).replace(NoContent)
 	}
 
 	def search = NotYetImplemented

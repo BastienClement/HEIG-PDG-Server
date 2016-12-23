@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.util.Try
-import services.{Crypto, FriendshipService}
+import services.{CryptoService, FriendshipService}
 import utils.Implicits.futureWrapper
 import utils.{DateTime, ErrorStrings}
 import utils.SlickAPI._
@@ -26,7 +26,7 @@ trait ApiActionBuilder extends Controller {
 	private def pull[T: ClassTag]: T = app.get.injector.instanceOf[T]
 
 	implicit lazy val ec = pull[ExecutionContext]
-	implicit lazy val crypto = pull[Crypto]
+	implicit lazy val crypto = pull[CryptoService]
 	implicit lazy val cache = pull[CacheApi]
 	implicit lazy val fs = pull[FriendshipService]
 
@@ -164,7 +164,8 @@ trait ApiActionBuilder extends Controller {
 		new Users.PointOfView(req.user)
 	}
 
-	implicit class SimpleFutureRecovery[T](private val future: Future[T]) {
+	implicit class SimpleFutureOps[T](private val future: Future[T]) {
+		def replace[U](value: => U): Future[U] = future.map(_ => value)
 		def orElse[U >: T](value: => U): Future[U] = future.recover { case _ => value }
 	}
 

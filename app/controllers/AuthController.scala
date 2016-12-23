@@ -8,13 +8,13 @@ import play.api.libs.json.{JsString, Json}
 import play.api.mvc.{Controller, Result}
 import scala.concurrent.duration._
 import scala.language.implicitConversions
-import services.Crypto
+import services.CryptoService
 import utils.DateTime
 import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
 
 @Singleton
-class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
+class AuthController @Inject() (crypto: CryptoService)(val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
 	  * Generates a new authentication token

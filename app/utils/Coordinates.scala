@@ -1,6 +1,7 @@
 package utils
 
 import play.api.libs.json._
+import scala.language.implicitConversions
 
 case class Coordinates(lat: Double, lon: Double)
 
@@ -14,6 +15,12 @@ object Coordinates {
 			} yield Coordinates(lat, lon)
 		}
 	}
+
+	/** Implicitly converts from (Double, Double) to Coordinates */
+	implicit def pack(coordinates: (Double, Double)): Coordinates = (Coordinates.apply _).tupled(coordinates)
+
+	/** Implicitly converts from Coordinates to (Double, Double) */
+	implicit def unpack(coordinates: Coordinates): (Double, Double) = (coordinates.lat, coordinates.lon)
 
 	def parse(str: String): Coordinates = {
 		val Array(lat, lon) = str.split(",", 2).map(_.toDouble)

@@ -8,11 +8,9 @@ import play.api.libs.json.{JsObject, Json}
 import play.api.mvc.Controller
 import scala.concurrent.Future
 import scala.util.Try
-import services.LocationService
 import utils.SlickAPI._
 
-class EventsController @Inject() (loc: LocationService)
-                                 (val app: Provider[Application])
+class EventsController @Inject() (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 
 	def list = AuthApiAction.async { req =>
