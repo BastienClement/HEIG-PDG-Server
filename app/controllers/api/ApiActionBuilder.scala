@@ -105,7 +105,7 @@ trait ApiActionBuilder extends Controller {
 		}
 
 		/** Fetches the user from the request token, if available */
-		private def user[A](implicit request: Request[A]): Future[Option[User]] = {
+		private def user[A](token: Option[String])(implicit request: Request[A]): Future[Option[User]] = {
 			token.flatMap(decode) match {
 				case Some(tok) => Users.findById((tok \ "user").as[Int]).headOption
 				case None => Future.successful(None)
@@ -115,7 +115,9 @@ trait ApiActionBuilder extends Controller {
 		/** Transforms a basic Request to ApiRequest */
 		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = request match {
 			case apiRequest: ApiRequest[A] => apiRequest
-			case other => for (u <- user) yield ApiRequest(u.orNull, other)
+			case other =>
+				val tok = token
+				for (u <- user(tok)) yield ApiRequest(u.orNull, tok.orNull, other)
 		}
 
 		/** Invoke the action's block */
