@@ -22,7 +22,7 @@ class EventsController @Inject() (events: EventService)
 	}
 
 	def get(id: Int) = AuthApiAction.async { req =>
-		Events.findById(id).head.map { event => Ok(Json.toJson(event)) }.recover { case e => NotFound('EVENT_NOT_FOUND) }
+		Events.findById(id).head.map(event => Ok(Json.toJson(event))).orElse(NotFound('EVENT_NOT_FOUND))
 	}
 
 	def create = AuthApiAction.async(parse.tolerantJson) { req =>
@@ -40,8 +40,8 @@ class EventsController @Inject() (events: EventService)
 	}
 
 	def nearby(lat: Double, lon: Double, radius: Double) = AuthApiAction.async {
-		events.nearby((lat, lon), radius).map { users =>
-			val combined = users.map { case (event, distance) =>
+		events.nearby((lat, lon), radius).map { events =>
+			val combined = events.map { case (event, distance) =>
 				Json.toJson(event).as[JsObject] + ("distance" -> JsNumber(distance))
 			}
 			Ok(Json.toJson(combined))

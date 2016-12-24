@@ -3,7 +3,7 @@ package controllers
 import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.ApiActionBuilder
 import play.api.Application
-import play.api.libs.json.{JsNull, Json}
+import play.api.libs.json.Json
 import play.api.mvc.{Action, Controller}
 import services.UptimeService
 
@@ -28,7 +28,6 @@ class DummyController @Inject() (uptime: UptimeService)(val app: Provider[Applic
 		Ok(Json.obj(
 			"server" -> "Eventail API v1",
 			"version" -> 1,
-			"revision" -> JsNull,
 			"mode" -> app.get.mode.toString,
 			"start" -> uptime.start.toString,
 			"uptime" -> uptime.now,
