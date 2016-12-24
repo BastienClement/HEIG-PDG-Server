@@ -10,6 +10,7 @@ import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
+import slick.jdbc.GetResult
 import utils.SlickAPI._
 
 object DateTime {
@@ -69,6 +70,7 @@ object DateTime {
 
 	// Slick definitions
 	implicit val DateTimeColumnType = MappedColumnType.base[DateTime, Timestamp](_.toTimestamp, fromTimestamp)
+	implicit val DateTimeGetResult = GetResult(r => fromTimestamp(r.<<))
 
 	// Duration helpers
 	implicit class Units(val amount: Int) extends AnyVal {

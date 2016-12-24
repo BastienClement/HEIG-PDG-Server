@@ -1,12 +1,13 @@
 package services
 
-import com.google.inject.Inject
+import com.google.inject.{Inject, Singleton}
 import models.{User, Users}
 import org.apache.commons.codec.digest.DigestUtils
 import scala.concurrent.{ExecutionContext, Future}
 import utils.Coordinates
 import utils.SlickAPI._
 
+@Singleton
 class UserService @Inject() (implicit ec: ExecutionContext) {
 	def get(id: Int): Future[User] = {
 		Users.findById(id).head

@@ -7,7 +7,7 @@ POST          /auth/extend                controllers.AuthController.extend
 
 GET           /events                     controllers.EventsController.list
 POST          /events                     controllers.EventsController.create
-
+GET           /events/nearby              controllers.EventsController.nearby(lat: Double, lon: Double, radius: Double ?= 1000)
 GET           /events/:id                 controllers.EventsController.get(id: Int)
 PATCH         /events/:id                 controllers.DummyController.nyi1(id)
 DELETE        /events/:id                 controllers.DummyController.nyi1(id)

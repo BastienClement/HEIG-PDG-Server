@@ -1,6 +1,7 @@
 package models
 
 import play.api.libs.json.{Format, Json}
+import slick.jdbc.GetResult
 import slick.lifted.TableQuery
 import utils.SlickAPI._
 import utils.{DateTime, UsingImplicits}
@@ -28,6 +29,9 @@ class Events(tag: Tag) extends Table[Event](tag, "events") {
 }
 
 object Events extends TableQuery(new Events(_)) {
+	/** Raw SQL Event reader */
+	implicit val UserGetResult = GetResult(r => Event(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<))
+
 	implicit val EventFormat: Format[Event] = Json.format[Event]
 
 	val findById = Events.findBy(_.id)
