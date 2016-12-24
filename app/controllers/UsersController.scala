@@ -2,24 +2,23 @@ package controllers
 
 import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.{ApiActionBuilder, ApiException, ApiRequest}
-import gql.{GraphQL, QueryExecutor}
-import models.User
+import models.{User, Users}
 import play.api.Application
-import play.api.libs.json.{JsArray, JsObject}
+import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
-import sangria.macros._
 import scala.util.Try
-import services.LocationService
+import services.UserService
+import utils.SlickAPI._
 
 /**
   * The controller handing user-related operations.
   *
-  * @param app the Play application instance
-  * @param loc the Location service
+  * @param users an instance of the UserService
+  * @param app   the Play application instance
   */
 @Singleton
-class UsersController @Inject() (val app: Provider[Application], loc: LocationService)
-		(implicit gql: GraphQL)
+class UsersController @Inject() (users: UserService)
+                                (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
 	  * Extracts the numeric user ID from the given URI parameter.
@@ -32,17 +31,12 @@ class UsersController @Inject() (val app: Provider[Application], loc: LocationSe
 	  * @return the corresponding numeric user ID
 	  */
 	private def userId[A](uid: String, selfOnly: Boolean = false, strict: Boolean = false)
-			(implicit req: ApiRequest[A]): Int = {
-		uid match {
-			case "self" => req.user.id
-			case _ =>
-				val id = Try(uid.toInt).getOrElse(throw ApiException('USERS_INVALID_UID, UnprocessableEntity))
-				if (selfOnly && !req.userOpt.exists { u => u.id == id || (!strict && u.admin) }) {
-					throw ApiException('USERS_ACTION_SELF_ONLY, Forbidden)
-				} else {
-					id
-				}
-		}
+	                     (implicit req: ApiRequest[A]): Int = uid match {
+		case "self" => req.user.id
+		case _ =>
+			val id = Try(uid.toInt).getOrElse(throw ApiException('USERS_INVALID_UID, UnprocessableEntity))
+			if (!selfOnly || req.userOpt.exists(u => u.id == id || (!strict && u.admin))) id
+			else throw ApiException('USERS_ACTION_SELF_ONLY, Forbidden)
 	}
 
 	/**
@@ -56,7 +50,9 @@ class UsersController @Inject() (val app: Provider[Application], loc: LocationSe
 	  * @tparam T the return type of the action
 	  * @return the return value of the action
 	  */
-	private def requireSelf[A, T](uid: String)(action: User => T)(implicit req: ApiRequest[A]): T = {
+	private def requireSelf[A, T](uid: String)
+	                             (action: User => T)
+	                             (implicit req: ApiRequest[A]): T = {
 		userId(uid, selfOnly = true, strict = true)
 		action(req.user)
 	}
@@ -64,10 +60,10 @@ class UsersController @Inject() (val app: Provider[Application], loc: LocationSe
 	/**
 	  * Returns the list of users matching the given filters.
 	  */
-	def list = ApiAction.async { implicit req =>
-		graphql"""
-			{ users { id, username } }
-	   """.execute().map { data => Ok((data \ "users").as[JsArray]) }
+	def list = AuthApiAction.async { implicit req =>
+		Users.sortBy(u => u.id).run.map { users =>
+			Ok(Json.toJson(users))
+		}
 	}
 
 	/**
@@ -75,28 +71,28 @@ class UsersController @Inject() (val app: Provider[Application], loc: LocationSe
 	  *
 	  * @param user the user id or the keyword "self"
 	  */
-	def user(user: String) = ApiAction.async { implicit req =>
-		graphql"""
-			query SingleUser($$id: Int) {
-				user(id: $$id) { id, username, firstname, lastname, mail, admin }
-			}
-	   """.execute("id" -> userId(user)).map { data =>
-			(data \ "user").asOpt[JsObject].map(Ok(_)).getOrElse(NotFound('USERS_USER_NOT_FOUND))
-		}
+	def user(user: String) = AuthApiAction.async { implicit req =>
+		users.get(userId(user)).map(u => Ok(Json.toJson(u))).orElse(NotFound('USERS_USER_NOT_FOUND))
 	}
 
 	/**
 	  * Updates user location.
-	  *
-	  * @param uid the user id or the keyword "self"
 	  */
-	def location(uid: String) = AuthApiAction.async { implicit req =>
-		requireSelf(uid) { user =>
-			val lat = param[Double]("lat")
-			val lon = param[Double]("lon")
-			loc.updateUser(user, lat, lon)
-		}.map { _ => NoContent }
+	def location = AuthApiAction.async { implicit req =>
+		val lat = param[Double]("lat")
+		val lon = param[Double]("lon")
+		users.updateLocation(req.user.id, (lat, lon), req.token).map {
+			case true => NoContent
+			case false => Conflict
+		}
 	}
 
-	def search = NotYetImplemented
+	def nearby(lat: Double, lon: Double, radius: Double, all: Boolean) = AuthApiAction.async { implicit req =>
+		users.nearby((lat, lon), radius, all).map { users =>
+			val combined = users.map { case (user, distance) =>
+				Json.toJson(user).as[JsObject] + ("distance" -> JsNumber(distance))
+			}
+			Ok(Json.toJson(combined))
+		}
+	}
 }

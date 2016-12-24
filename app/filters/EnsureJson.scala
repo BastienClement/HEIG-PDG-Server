@@ -8,10 +8,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import utils.Implicits.futureWrapper
 
 @Singleton
-class EnsureJson @Inject()(
-		implicit override val mat: Materializer,
-		exec: ExecutionContext) extends Filter {
-
+class EnsureJson @Inject()(implicit override val mat: Materializer,
+                           exec: ExecutionContext) extends Filter {
 	private def wrapResponse(res: Future[Result]): Future[Result] = res.flatMap {
 		case html if html.body.contentType.exists(_.startsWith("text/html")) =>
 			html.body.consumeData.map { body =>
@@ -22,7 +20,6 @@ class EnsureJson @Inject()(
 					"body" -> body.utf8String
 				))
 			}
-
 		case other => other
 	}
 

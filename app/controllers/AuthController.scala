@@ -4,17 +4,19 @@ import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.ApiActionBuilder
 import models.{User, Users}
 import play.api.Application
-import play.api.libs.json.{JsString, Json}
+import play.api.libs.json.Json
 import play.api.mvc.{Controller, Result}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.implicitConversions
-import services.Crypto
+import services.{CryptoService, UserService}
 import utils.DateTime
 import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
 
 @Singleton
-class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
+class AuthController @Inject() (crypto: CryptoService, users: UserService)
+                               (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
 	  * Generates a new authentication token
@@ -38,21 +40,24 @@ class AuthController @Inject() (crypto: Crypto)(val app: Provider[Application])
 		val mail = (req.body \ "mail").to[String]
 		val pass = (req.body \ "pass").to[String]
 
-		Users.filter(_.mail === mail).head.filter { u =>
-			crypto.check(pass, u.pass)
-		}.map { u =>
+		Users.filter(u => u.mail === mail).map(u => (u, u.pass)).head.filter { case (_, refPass) =>
+			crypto.check(pass, refPass)
+		}.map { case (u, _) =>
 			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))
 		}.recover { case e =>
 			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
 		}
 	}
 
-	def extend = AuthApiAction { req =>
-		genToken(req.user)
+	def launch = ApiAction.async { req =>
+		val active = req.userOpt match {
+			case Some(user) => users.setCurrentActiveDevice(user.id, req.token).replace(true)
+			case None => Future.successful(false)
+		}
+		active.map(a => Ok(Json.obj("active" -> a)))
 	}
 
-	def hash = ApiAction(parse.json) { req =>
-		val pass = (req.body \ "pass").to[String]
-		Ok(JsString(crypto.hash(pass)))
+	def extend = AuthApiAction { req =>
+		genToken(req.user)
 	}
 }

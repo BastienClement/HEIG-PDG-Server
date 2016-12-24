@@ -19,10 +19,8 @@ libraryDependencies ++= Seq(
 	cache,
 	ws,
 	filters,
-	"mysql" % "mysql-connector-java" % "5.1.40",
-	"com.typesafe.play" %% "play-slick" % "2.0.2",
-	"org.sangria-graphql" %% "sangria" % "1.0.0-RC2",
-	"org.sangria-graphql" %% "sangria-play-json" % "0.3.3"
+	"org.postgresql" % "postgresql" % "9.4.1212",
+	"com.typesafe.play" %% "play-slick" % "2.0.2"
 )
 
 dockerExposedPorts := Seq(9000)

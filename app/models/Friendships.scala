@@ -15,7 +15,11 @@ class Friendships(tag: Tag) extends Table[Friendship](tag, "friends") {
 }
 
 object Friendships extends TableQuery(new Friendships(_)) {
-	def exists(a: Rep[Int], b: Rep[Int]): Rep[Boolean] = {
-		Friendships.filter(f => (f.a === a && f.b === b) || (f.a === b && f.b === a)).exists
+	def find(x: Rep[Int], y: Rep[Int]): Query[Friendships, Friendship, Seq] = {
+		val a = Case If (x < y) Then x Else y
+		val b = Case If (x < y) Then y Else x
+		Friendships.filter(fs => fs.a === a && fs.b === b).take(1)
 	}
+
+	def exists(a: Rep[Int], b: Rep[Int]): Rep[Boolean] = Friendships.find(a, b).exists
 }

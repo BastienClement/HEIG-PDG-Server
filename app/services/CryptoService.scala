@@ -11,7 +11,7 @@ import scala.util.Try
 import utils.BCrypt
 
 @Singleton
-class Crypto @Inject() (conf: Configuration) {
+class CryptoService @Inject() (conf: Configuration) {
 	/**
 	  * Hashes a password with BCrypt.
 	  *

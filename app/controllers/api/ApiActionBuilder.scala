@@ -1,7 +1,6 @@
 package controllers.api
 
 import com.google.inject.Provider
-import gql.Ctx
 import models.{User, Users}
 import play.api.Application
 import play.api.cache.CacheApi
@@ -11,8 +10,9 @@ import play.api.libs.json._
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 import scala.util.Try
-import services.Crypto
+import services.{CryptoService, FriendshipService}
 import utils.Implicits.futureWrapper
 import utils.{DateTime, ErrorStrings}
 import utils.SlickAPI._
@@ -23,10 +23,12 @@ import utils.SlickAPI._
   */
 trait ApiActionBuilder extends Controller {
 	val app: Provider[Application]
+	private def pull[T: ClassTag]: T = app.get.injector.instanceOf[T]
 
-	implicit lazy val ec = app.get.injector.instanceOf[ExecutionContext]
-	implicit lazy val crypto = app.get.injector.instanceOf[Crypto]
-	implicit lazy val cache = app.get.injector.instanceOf[CacheApi]
+	implicit lazy val ec = pull[ExecutionContext]
+	implicit lazy val crypto = pull[CryptoService]
+	implicit lazy val cache = pull[CacheApi]
+	implicit lazy val fs = pull[FriendshipService]
 
 	/**
 	  * Serializes Throwable instance into JSON objects.
@@ -80,15 +82,18 @@ trait ApiActionBuilder extends Controller {
 
 	/** An API action */
 	object ApiAction extends ActionBuilder[ApiRequest] {
+		/** Parses the Authorization header */
+		private def parseAuthorization(header: String): Option[String] = {
+			if (header.toLowerCase.startsWith("token ")) Some(header.substring(6).trim)
+			else None
+		}
+
 		/** Returns the token from the Authorization header or query string parameter */
 		private def token[A](implicit request: Request[A]): Option[String] = {
-			request.getQueryString("token").orElse {
-				request.headers.get("Authorization").collect {
-					case auth if auth.toLowerCase.startsWith("token ") => auth.substring(6).trim
-				}
-			}.orElse {
-				request.headers.get("X-Auth-Token")
-			}
+			def queryString = request.getQueryString("token")
+			def authorization = request.headers.get("Authorization").flatMap(parseAuthorization)
+			def header = request.headers.get("X-Auth-Token")
+			queryString orElse authorization orElse header
 		}
 
 		/** Decodes the token string and validates expiration date */
@@ -100,7 +105,7 @@ trait ApiActionBuilder extends Controller {
 		}
 
 		/** Fetches the user from the request token, if available */
-		private def user[A](implicit request: Request[A]): Future[Option[User]] = {
+		private def user[A](token: Option[String])(implicit request: Request[A]): Future[Option[User]] = {
 			token.flatMap(decode) match {
 				case Some(tok) => Users.findById((tok \ "user").as[Int]).headOption
 				case None => Future.successful(None)
@@ -110,7 +115,9 @@ trait ApiActionBuilder extends Controller {
 		/** Transforms a basic Request to ApiRequest */
 		def transform[A](implicit request: Request[A]): Future[ApiRequest[A]] = request match {
 			case apiRequest: ApiRequest[A] => apiRequest
-			case other => for (u <- user) yield ApiRequest(u.orNull, other)
+			case other =>
+				val tok = token
+				for (u <- user(tok)) yield ApiRequest(u.orNull, tok.orNull, other)
 		}
 
 		/** Invoke the action's block */
@@ -157,6 +164,17 @@ trait ApiActionBuilder extends Controller {
 	/** A placeholder for not implemented actions */
 	def NotYetImplemented = Action { req => NotImplemented('NOT_YET_IMPLEMENTED) }
 
-	/** Automatic GraphQL Ctx construction */
-	implicit def implicitGraphQLContext(implicit req: ApiRequest[_]): Ctx = Ctx(req.userOpt)
+	/** Implicitly construct a PointOfView as the user issuing the request. */
+	protected implicit def implicitPointOfViewFromRequest(implicit req: ApiRequest[_]): Users.PointOfView = {
+		new Users.PointOfView(req.user)
+	}
+
+	implicit class SimpleFutureOps[T](private val future: Future[T]) {
+		def replace[U](value: => U): Future[U] = future.map(_ => value)
+		def orElse[U >: T](value: => U): Future[U] = future.recover { case _ => value }
+	}
+
+	implicit def writableJson[A: Writes](implicit codec: Codec): Writeable[A] = {
+		Writeable[A]((a: A) => codec.encode(Json.toJson(a).toString), Some("application/json"))
+	}
 }
