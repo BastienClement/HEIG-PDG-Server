@@ -1,6 +1,6 @@
 package controllers
 
-import com.google.inject.{Inject, Provider}
+import com.google.inject.{Inject, Provider, Singleton}
 import controllers.api.ApiActionBuilder
 import models.{Event, Events}
 import play.api.Application
@@ -11,6 +11,7 @@ import scala.util.Try
 import services.EventService
 import utils.SlickAPI._
 
+@Singleton
 class EventsController @Inject() (events: EventService)
                                  (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
