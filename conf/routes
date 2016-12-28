@@ -13,6 +13,13 @@ GET           /events/:id                       controllers.EventsController.get
 PATCH         /events/:id                       controllers.DummyController.nyi1(id)
 DELETE        /events/:id                       controllers.DummyController.nyi1(id)
 
+# POIs
+GET           /events/:eid/poi                  controllers.EventsController.listPOI(eid: Int)
+POST          /events/:eid/poi                  controllers.EventsController.createPOI(eid: Int)
+GET           /events/:eid/poi/:poi             controllers.EventsController.getPOI(eid: Int, poi: Int)
+PATCH         /events/:eid/poi/:poi             controllers.EventsController.updatePOI(eid: Int, poi: Int)
+DELETE        /events/:eid/poi/:poi             controllers.EventsController.removePOI(eid: Int, poi: Int)
+
 # Users
 GET           /users                            controllers.UsersController.list
 GET           /users/nearby                     controllers.UsersController.nearby(lat: Double, lon: Double, radius: Double ?= 1000, all: Boolean ?= false)
