@@ -7,7 +7,7 @@ import play.api.Application
 import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
 import scala.util.Try
-import services.UserService
+import services.{FriendshipService, UserService}
 import utils.SlickAPI._
 
 /**
@@ -17,7 +17,7 @@ import utils.SlickAPI._
   * @param app   the Play application instance
   */
 @Singleton
-class UsersController @Inject() (users: UserService)
+class UsersController @Inject() (val users: UserService, val friends: FriendshipService)
                                 (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
@@ -30,8 +30,8 @@ class UsersController @Inject() (users: UserService)
 	  * @tparam A the body type of the request
 	  * @return the corresponding numeric user ID
 	  */
-	private def userId[A](uid: String, selfOnly: Boolean = false, strict: Boolean = false)
-	                     (implicit req: ApiRequest[A]): Int = uid match {
+	protected def userId[A](uid: String, selfOnly: Boolean = false, strict: Boolean = false)
+	                       (implicit req: ApiRequest[A]): Int = uid match {
 		case "self" => req.user.id
 		case _ =>
 			val id = Try(uid.toInt).getOrElse(throw ApiException('USERS_INVALID_UID, UnprocessableEntity))
@@ -50,9 +50,9 @@ class UsersController @Inject() (users: UserService)
 	  * @tparam T the return type of the action
 	  * @return the return value of the action
 	  */
-	private def requireSelf[A, T](uid: String)
-	                             (action: User => T)
-	                             (implicit req: ApiRequest[A]): T = {
+	protected def requireSelf[A, T](uid: String)
+	                               (action: User => T)
+	                               (implicit req: ApiRequest[A]): T = {
 		userId(uid, selfOnly = true, strict = true)
 		action(req.user)
 	}
@@ -94,5 +94,19 @@ class UsersController @Inject() (users: UserService)
 			}
 			Ok(Json.toJson(combined))
 		}
+	}
+
+	def friendsList(uid: String) = AuthApiAction.async { implicit req =>
+		friends.list(userId(uid)).map { friends =>
+			Ok(friends.map(Json.toJson(_)))
+		}
+	}
+
+	def friendAdd(uid: String, other: Int) = AuthApiAction.async { implicit req =>
+		friends.add(userId(uid, selfOnly = true), other).replace(NoContent).orElse(BadRequest)
+	}
+
+	def friendRemove(uid: String, other: Int) = AuthApiAction.async { implicit req =>
+		friends.remove(userId(uid, selfOnly = true), other).replace(NoContent).orElse(NotFound)
 	}
 }

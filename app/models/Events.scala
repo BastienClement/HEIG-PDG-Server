@@ -59,5 +59,5 @@ object Events extends TableQuery(new Events(_)) {
 		} yield Event(id, title, owner, desc, begin, end, spontaneous, location.lat, location.lon, radius)
 	}
 
-	val findById = Events.findBy(_.id)
+	def findById(id: Int) = Events.filter(e => e.id === id)
 }

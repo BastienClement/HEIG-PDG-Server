@@ -1,10 +1,11 @@
 package services
 
 import com.google.inject.{Inject, Singleton}
-import models.{Friendship, Friendships}
+import java.util.NoSuchElementException
+import models.{Friendship, Friendships, User, Users}
 import play.api.cache.CacheApi
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import utils.SlickAPI._
 
 /**
@@ -27,7 +28,8 @@ import utils.SlickAPI._
   * @param cache the Play cache API
   */
 @Singleton
-class FriendshipService @Inject() (cache: CacheApi) {
+class FriendshipService @Inject() (cache: CacheApi)
+                                  (implicit ec: ExecutionContext) {
 	/**
 	  * Generates the cache key for the friendship status between a and b.
 	  *
@@ -58,6 +60,7 @@ class FriendshipService @Inject() (cache: CacheApi) {
 	  * @return a future that will be completed once the database is updated
 	  */
 	def add(a: Int, b: Int): Future[_] = if (a > b) add(b, a) else {
+		cache.remove(cacheKey(a, b))
 		(Friendships += Friendship(a, b)).run
 	}
 
@@ -70,6 +73,13 @@ class FriendshipService @Inject() (cache: CacheApi) {
 	  */
 	def remove(a: Int, b: Int): Future[_] = if (a > b) remove(b, a) else {
 		cache.remove(cacheKey(a, b))
-		Friendships.find(a, b).delete.run
+		Friendships.find(a, b).delete.run.map {
+			case 0 => throw new NoSuchElementException
+			case _ => ()
+		}
+	}
+
+	def list(user: Int): Future[Seq[User]] = {
+		Users.filter(other => Friendships.exists(user, other.id)).run
 	}
 }

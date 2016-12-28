@@ -5,7 +5,8 @@ import play.api.libs.json._
 import services.FriendshipService
 import slick.jdbc.GetResult
 import utils.SlickAPI._
-import utils.{Coordinates, UsingImplicits}
+import utils.{Coordinates, DateTime, UsingImplicits}
+import utils.DateTime.Units
 
 /**
   * An Eventail user.
@@ -20,12 +21,16 @@ import utils.{Coordinates, UsingImplicits}
   * @param lon       the user's current longitude
   */
 case class User(id: Int, firstname: String, lastname: String, username: String,
-                mail: String, rank: Int, lat: Double, lon: Double) extends UsingImplicits[Users] {
+                mail: String, rank: Int, lat: Double, lon: Double, updated: DateTime)
+		extends UsingImplicits[Users] {
 	/** Whether the user is an administrator user. */
 	def admin: Boolean = rank == Users.Rank.Admin
 
 	/** The current user's location, if available. */
-	def location: Option[Coordinates] = Some(Coordinates(lat, lon))
+	def location: Option[Coordinates] = {
+		if (updated + 1.hour < DateTime.now) None
+		else Some((lat, lon))
+	}
 
 	/**
 	  * Constructs a new view of this user from an available implicit point of view.
@@ -46,20 +51,17 @@ class Users(tag: Tag) extends Table[User](tag, "users") {
 	def rank = column[Int]("rank")
 	def lat = column[Double]("lat")
 	def lon = column[Double]("lon")
+	def updated = column[DateTime]("updated")
 
 	def pass = column[String]("pass")
 	def cad = column[Option[String]]("cad")
 
-	def * = (id, firstname, lastname, username, mail, rank, lat, lon) <> (User.tupled, User.unapply)
+	def * = (id, firstname, lastname, username, mail, rank, lat, lon, updated) <> (User.tupled, User.unapply)
 }
 
 object Users extends TableQuery(new Users(_)) {
 	/** Raw SQL User reader */
-	implicit val UserGetResult = GetResult { r =>
-		val user = User(r.<<, r.<<, r.<<, r.<<, r.<<, r.skip.<<, r.<<, r.<<)
-		r.skip
-		user
-	}
+	implicit val UserGetResult = GetResult(r => User(r.<<, r.<<, r.<<, r.<<, r.<<, r.skip.<<, r.<<, r.<<, r.skip.<<))
 
 	/** Rank values */
 	object Rank {
