@@ -5,6 +5,7 @@ POST          /auth/token                       controllers.AuthController.token
 POST          /auth/launch                      controllers.AuthController.launch
 POST          /auth/extend                      controllers.AuthController.extend
 
+# Events
 GET           /events                           controllers.EventsController.list
 POST          /events                           controllers.EventsController.create
 GET           /events/nearby                    controllers.EventsController.nearby(lat: Double, lon: Double, radius: Double ?= 1000)
@@ -12,11 +13,13 @@ GET           /events/:id                       controllers.EventsController.get
 PATCH         /events/:id                       controllers.DummyController.nyi1(id)
 DELETE        /events/:id                       controllers.DummyController.nyi1(id)
 
+# Users
 GET           /users                            controllers.UsersController.list
 GET           /users/nearby                     controllers.UsersController.nearby(lat: Double, lon: Double, radius: Double ?= 1000, all: Boolean ?= false)
 PUT           /users/self/location              controllers.UsersController.location
 GET           /users/:uid                       controllers.UsersController.user(uid)
 
+# Friends
 GET           /users/:uid/friends               controllers.UsersController.friendsList(uid)
 PUT           /users/:uid/friends/:other        controllers.UsersController.friendAdd(uid, other: Int)
 DELETE        /users/:uid/friends/:other        controllers.UsersController.friendRemove(uid, other: Int)
