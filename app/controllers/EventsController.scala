@@ -53,6 +53,16 @@ class EventsController @Inject() (events: EventService)
 		}.get
 	}
 
+	/** Deletes an event */
+	def delete(id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		ensureEventEditable(id) {
+			events.delete(id).map {
+				case true => NoContent
+				case false => NotFound('EVENT_NOT_FOUND)
+			}
+		}
+	}
+
 	/** Searches for nearby events. */
 	def nearby(lat: Double, lon: Double, radius: Double) = AuthApiAction.async {
 		events.nearby((lat, lon), radius).map { events =>

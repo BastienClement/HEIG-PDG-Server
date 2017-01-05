@@ -22,6 +22,19 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	}
 
 	/**
+	  * Deletes an event.
+	  *
+	  * @param event the event id
+	  * @return a future that will be resolved to true if an event was deleted, false otherwise.
+	  */
+	def delete(event: Int): Future[Boolean] = {
+		Events.findById(event).delete.run.map {
+			case 0 => false
+			case 1 => true
+		}
+	}
+
+	/**
 	  * Searches nearby events.
 	  *
 	  * @param point  the point around which users are searched
