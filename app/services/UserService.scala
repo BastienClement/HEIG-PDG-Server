@@ -4,8 +4,8 @@ import com.google.inject.{Inject, Singleton}
 import models.{User, Users}
 import org.apache.commons.codec.digest.DigestUtils
 import scala.concurrent.{ExecutionContext, Future}
-import utils.{Coordinates, DateTime}
 import utils.SlickAPI._
+import utils.{Coordinates, DateTime}
 
 @Singleton
 class UserService @Inject() (implicit ec: ExecutionContext) {
@@ -19,9 +19,9 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	}
 
 	def updateLocation(id: Int, coords: Coordinates, cad: String): Future[Boolean] = {
-		val cadHash = Some(DigestUtils.sha1Hex(cad))
-		val userQuery = Users.findById(id).filter(u => u.cad === cad || u.cad.isEmpty)
-		val data = (coords.lat, coords.lon, cadHash, DateTime.now)
+		val cadHash = DigestUtils.sha1Hex(cad)
+		val userQuery = Users.findById(id).filter(u => u.cad === cadHash || u.cad.isEmpty)
+		val data = (coords.lat, coords.lon, Some(cadHash), DateTime.now)
 		userQuery.map(user => (user.lat, user.lon, user.cad, user.updated)).update(data).run.map {
 			case 0 => false
 			case 1 => true

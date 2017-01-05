@@ -26,11 +26,11 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	  *
 	  * @param user the user authenticated by the token
 	  */
-	private def genToken(user: User, extended: Boolean = false): Result = {
+	private def genToken(user: User, extended: Boolean = false)(implicit pov: Users.PointOfView): Result = {
 		val duration = if (extended && user.admin) 180.days else 7.days
 		val expires = DateTime.now + duration
 		val token = Json.obj("user" -> user.id, "expires" -> expires)
-		Ok(Json.obj("token" -> crypto.sign(token), "expires" -> expires))
+		Ok(Json.obj("token" -> crypto.sign(token), "expires" -> expires, "user" -> user))
 	}
 
 	/**
@@ -43,7 +43,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 		Users.filter(u => u.mail === mail).map(u => (u, u.pass)).head.filter { case (_, refPass) =>
 			crypto.check(pass, refPass)
 		}.map { case (u, _) =>
-			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))
+			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))(new Users.PointOfView(u))
 		}.recover { case e =>
 			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
 		}
@@ -57,7 +57,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 		active.map(a => Ok(Json.obj("active" -> a)))
 	}
 
-	def extend = AuthApiAction { req =>
+	def extend = AuthApiAction { implicit req =>
 		genToken(req.user)
 	}
 }

@@ -4,9 +4,9 @@ import models.Users.UserView
 import play.api.libs.json._
 import services.FriendshipService
 import slick.jdbc.GetResult
+import utils.DateTime.Units
 import utils.SlickAPI._
 import utils.{Coordinates, DateTime, UsingImplicits}
-import utils.DateTime.Units
 
 /**
   * An Eventail user.
@@ -82,7 +82,7 @@ object Users extends TableQuery(new Users(_)) {
 		def admin: Boolean = user.admin
 
 		/** Whether the point of view is an admin or friend user. */
-		def friend(target: User): Boolean = admin || fs.friends(user.id, target.id)
+		def friend(target: User): Boolean = admin || target.id == user.id || fs.friends(user.id, target.id)
 	}
 
 	/**
