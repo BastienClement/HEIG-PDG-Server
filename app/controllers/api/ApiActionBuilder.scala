@@ -14,8 +14,8 @@ import scala.reflect.ClassTag
 import scala.util.Try
 import services.{CryptoService, FriendshipService}
 import utils.Implicits.futureWrapper
-import utils.{DateTime, ErrorStrings}
 import utils.SlickAPI._
+import utils.{DateTime, ErrorStrings}
 
 /**
   * Mixin trait for API controllers.
@@ -39,8 +39,10 @@ trait ApiActionBuilder extends Controller {
 		else Json.obj(
 			"class" -> t.getClass.getName,
 			"message" -> t.getMessage,
-			"trace" -> Try { t.getStackTrace.map(_.toString): JsValueWrapper }.getOrElse(Json.arr()),
-			"cause" -> serializeThrowable(t, seen + t)
+			"trace" -> Try {
+				t.getStackTrace.map(_.toString): JsValueWrapper
+			}.getOrElse(Json.arr()),
+			"cause" -> serializeThrowable(t.getCause, seen + t)
 		)
 	}
 
@@ -146,7 +148,10 @@ trait ApiActionBuilder extends Controller {
 		def getQueryStringAsDouble(key: String): Option[Double] = getQueryStringAs[Double](key)
 	}
 
+	/** Querystring parameter decoder */
 	case class QueryStringReader[T](mapper: String => Option[T])
+
+	/** Supports for basic types of input reading */
 	object QueryStringReader {
 		private def unsafeWrapper[T](mapper: String => T) = QueryStringReader[T](s => Try(mapper(s)).toOption)
 
@@ -155,10 +160,28 @@ trait ApiActionBuilder extends Controller {
 		implicit val doubleMapper: QueryStringReader[Double] = unsafeWrapper(_.toDouble)
 	}
 
+	/** Default value for missing parameters */
 	private def Unprocessable: Nothing = throw ApiException('UNPROCESSABLE_ENTITY, UnprocessableEntity)
 
-	def param[T: Reads : QueryStringReader](name: String, default: => T = Unprocessable)(implicit req: Request[AnyContent]): T = {
-		req.body.asJson.flatMap(b => (b \ name).asOpt[T]).orElse { req.getQueryStringAs[T](name) }.getOrElse(default)
+	/**
+	  * Attempts to read input parameters.
+	  *
+	  * This method will first attempt to read the value from the body payload, if this is a JSON object.
+	  * If the first read fails, it will then attempt to read the parameter from the query string.
+	  * Finally, if none of the reads were successful, the default value will be returned.
+	  *
+	  * By default, a missing parameter will throw the UNPROCESSABLE_ENTITY exception.
+	  *
+	  * @param name    the parameter name
+	  * @param default the default value to return
+	  * @param req     the request object
+	  * @tparam T the type of the value to read
+	  */
+	def param[T: Reads : QueryStringReader](name: String, default: => T = Unprocessable)
+	                                       (implicit req: Request[AnyContent]): T = {
+		req.body.asJson.flatMap(b => (b \ name).asOpt[T]).orElse {
+			req.getQueryStringAs[T](name)
+		}.getOrElse(default)
 	}
 
 	/** A placeholder for not implemented actions */
@@ -169,11 +192,39 @@ trait ApiActionBuilder extends Controller {
 		new Users.PointOfView(req.user)
 	}
 
+	/**
+	  * Provides simple operations on Future values.
+	  *
+	  * @param future the future value
+	  * @tparam T the type of value of this future
+	  */
 	implicit class SimpleFutureOps[T](private val future: Future[T]) {
+		/**
+		  * Unconditionally replaces the content of this future by the provided value.
+		  *
+		  * @param value the replacement value
+		  * @tparam U the type of the replacement value
+		  * @return a new future that will be resolved to the replacement value
+		  */
 		def replace[U](value: => U): Future[U] = future.map(_ => value)
+
+		/**
+		  * Unconditionally recovers a failed future using the provided value.
+		  *
+		  * @param value the recovery value
+		  * @tparam U the type of the recovery value
+		  * @return a future that will be resolved to the given value if it were previously failed.
+		  */
 		def orElse[U >: T](value: => U): Future[U] = future.recover { case _ => value }
 	}
 
+	/**
+	  * Automatically provides instances of Writable[A] if A can be converted to a JSON value.
+	  *
+	  * @param codec the Play codec instance
+	  * @tparam A the type of value to serialize
+	  * @return a Writable instance for the type A
+	  */
 	implicit def writableJson[A: Writes](implicit codec: Codec): Writeable[A] = {
 		Writeable[A]((a: A) => codec.encode(Json.toJson(a).toString), Some("application/json"))
 	}
