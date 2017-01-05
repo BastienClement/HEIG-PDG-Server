@@ -89,11 +89,9 @@ class EventsController @Inject() (events: EventService)
 	/** Updates a specific Point of Interest for a given event. */
 	def updatePOI(event: Int, id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
 		ensureEventEditable(event) {
-			val poi = (req.body.as[JsObject] ++ Json.obj("event" -> event, "id" -> id)).as[PointOfInterest]
-			events.updatePOI(poi).map {
-				case true => NoContent
-				case false => NotFound('EVENT_POI_NOT_FOUND)
-			}
+			events.patchPOI(event, id, req.body.as[JsObject])
+					.map(poi => Ok(poi))
+					.orElse(NotFound('EVENT_POI_NOT_FOUND))
 		}
 	}
 

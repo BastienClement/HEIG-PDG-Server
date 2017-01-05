@@ -2,9 +2,10 @@ package services
 
 import com.google.inject.{Inject, Singleton}
 import models._
+import play.api.libs.json.JsObject
 import scala.concurrent.{ExecutionContext, Future}
-import utils.Coordinates
 import utils.SlickAPI._
+import utils.{Coordinates, Patch}
 
 @Singleton
 class EventService @Inject() (implicit ec: ExecutionContext) {
@@ -57,16 +58,19 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	}
 
 	/**
-	  * Updates a Point of Interest.
+	  * Patches a Point of Interest.
 	  *
-	  * @param poi the POI object to store
-	  * @return a future that will resolve to true if the POI was updated, to false otherwise
+	  * @param event the event id of this POI
+	  * @param id    the id of this POI
+	  * @param patch the patch document
+	  * @return a future that will be resolved with the updated point of interest
 	  */
-	def updatePOI(poi: PointOfInterest): Future[Boolean] = {
-		PointsOfInterest.findByKey(poi.event, poi.id).update(poi).run.map {
-			case 0 => false
-			case 1 => true
-		}
+	def patchPOI(event: Int, id: Int, patch: JsObject): Future[PointOfInterest] = {
+		Patch(PointsOfInterest.findByKey(event, id))
+				.MapField("title", _.title)
+				.MapField("desc", _.desc)
+				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+				.Execute(patch)
 	}
 
 	/**
