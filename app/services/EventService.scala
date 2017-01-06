@@ -30,11 +30,11 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  */
 	def patch(event: Int, patch: JsObject): Future[Event] = {
 		Patch(Events.findById(event))
+				.Require(ev => !ev.spontaneous, "spontaneous events cannot be modified")
 				.MapField("title", _.title)
 				.MapField("desc", _.desc)
 				.MapField("begin", _.begin)
 				.MapField("end", _.end)
-				.MapField("spontaneous", _.spontaneous)
 				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
 				.MapField("radius", _.radius)
 				.Execute(patch)
