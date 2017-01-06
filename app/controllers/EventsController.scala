@@ -9,6 +9,8 @@ import play.api.mvc.{Controller, Result}
 import scala.concurrent.Future
 import scala.util.Try
 import services.EventService
+import utils.DateTime
+import utils.DateTime.Units
 import utils.SlickAPI._
 
 @Singleton
@@ -41,10 +43,24 @@ class EventsController @Inject() (events: EventService)
 	/** Creates a new event. */
 	def create = AuthApiAction.async(parse.tolerantJson) { req =>
 		Try {
-			(req.body.as[JsObject] ++ Json.obj("id" -> 0, "owner" -> req.user.id)).as[Event]
+			val body = req.body.as[JsObject]
+			val spontaneous = (body \ "spontaneous").asOpt[Boolean].getOrElse(false)
+			val base = Json.obj("id" -> 0, "owner" -> req.user.id)
+			val obj = if (spontaneous){
+				base ++ body ++ Json.obj(
+					"spontaneous" -> true,
+					"begin" -> DateTime.now,
+					"end" -> (DateTime.now + 30.minutes)
+				)
+			} else {
+				base ++ body ++ Json.obj(
+					"spontaneous" -> false
+				)
+			}
+			obj.as[Event]
 		}.map { event =>
-			(Events.returning(Events.map(_.id)) += event).run.map { id =>
-				Created(event.copy(id = id)).withHeaders("Location" -> routes.EventsController.get(id).url)
+			((Events returning Events.map(_.id) into ((e, i) => e.copy(id = i))) += event).run.map { ev =>
+				Created(ev).withHeaders("Location" -> routes.EventsController.get(ev.id).url)
 			}.recover { case e =>
 				InternalServerError('EVENT_CREATE_ERROR withCause e)
 			}
