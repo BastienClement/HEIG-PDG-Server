@@ -3,6 +3,7 @@ package utils
 object ErrorStrings {
 	private val msg = Map[Symbol, String](
 		'AUTH_TOKEN_BAD_CREDENTIALS -> "This user is unknown or the password is incorrect.",
+		'AUTHORIZATION_REQUIRED -> "This endpoint requires a valid authorization token.",
 		'EVENT_NOT_FOUND -> "The requested event does not exist.",
 		'EVENT_POI_NOT_FOUND -> "The requested point of interest does not exist.",
 		'GENERIC_CLIENT_ERROR -> "Something is wrong with this request.",
