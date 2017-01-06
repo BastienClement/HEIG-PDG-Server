@@ -63,7 +63,7 @@ class EventsController @Inject() (events: EventService)
 	}
 
 	/** Deletes an event */
-	def delete(id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+	def delete(id: Int) = AuthApiAction.async { implicit req =>
 		ensureEventEditable(id) {
 			events.delete(id).map {
 				case true => NoContent
