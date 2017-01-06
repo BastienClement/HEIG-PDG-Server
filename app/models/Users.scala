@@ -111,7 +111,7 @@ object Users extends TableQuery(new Users(_)) {
 		// Proxies and filters to the source user object
 		def id: Int = user.id
 		def username: String = user.username
-		def firstname: Option[String] = filter(isFriend, user.lastname)
+		def firstname: Option[String] = filter(isFriend, user.firstname)
 		def lastname: Option[String] = filter(isFriend, user.lastname)
 		def mail: Option[String] = filter(isAdmin, user.mail)
 		def rank: Option[Int] = filter(isAdmin, user.rank)

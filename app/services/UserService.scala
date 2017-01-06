@@ -29,6 +29,29 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	}
 
 	/**
+	  * Searches for users matching the given query.
+	  *
+	  * This method only searches for non-friend users, also excluding the user itself.
+	  * At most 50 results will be returned, sorted by increasing distance from the current location.
+	  *
+	  * @param q the query string
+	  * @param pov the point of view
+	  * @return a list of users matching the query
+	  */
+	def search(q: String)
+	          (implicit pov: Users.PointOfView): Future[Seq[User]] = {
+		val (lat, lon) = pov.user.location.getOrElse(Coordinates(46.5197, 6.6323)).unpack
+		val pattern = q.replaceAll("_|%", "").toLowerCase + "%"
+		sql"""
+			SELECT *, earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) AS dist
+			FROM users
+			WHERE id != ${pov.user.id} AND (LOWER(username) LIKE ${pattern} OR LOWER(mail) LIKE ${pattern})
+				AND NOT EXISTS (SELECT * FROM friends WHERE (a = ${pov.user.id} AND b = id) OR (a = id AND b = ${pov.user.id}))
+			ORDER BY dist ASC
+			LIMIT 50""".as[User].run
+	}
+
+	/**
 	  * Searches nearby users.
 	  *
 	  * By default, only friends are returned. If the `all` parameter is

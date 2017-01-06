@@ -7,6 +7,7 @@ object ErrorStrings {
 		'EVENT_POI_NOT_FOUND -> "The requested point of interest does not exist.",
 		'GENERIC_CLIENT_ERROR -> "Something is wrong with this request.",
 		'GENERIC_SERVER_ERROR -> "Something is wrong with the server.",
+		'UNCAUGHT_EXCEPTION -> "An exception occurred during the processing of this request.",
 		'UNPROCESSABLE_ENTITY -> "The request does not conform to the expected input for this API action.",
 		'USERS_ACTION_SELF_ONLY -> "This action can only be executed for the user itself."
 	)

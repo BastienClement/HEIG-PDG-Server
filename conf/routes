@@ -23,6 +23,7 @@ DELETE        /events/:eid/poi/:poi             controllers.EventsController.rem
 # Users
 GET           /users                            controllers.UsersController.list
 GET           /users/nearby                     controllers.UsersController.nearby(lat: Double, lon: Double, radius: Double ?= 1000, all: Boolean ?= false)
+GET           /users/search                     controllers.UsersController.search(q: String ?= "")
 PUT           /users/self/location              controllers.UsersController.location
 GET           /users/:uid                       controllers.UsersController.user(uid)
 

@@ -89,17 +89,18 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 
 	def nearby(lat: Double, lon: Double, radius: Double, all: Boolean) = AuthApiAction.async { implicit req =>
 		users.nearby((lat, lon), radius, all).map { users =>
-			val combined = users.map { case (user, distance) =>
+			Ok(users.map { case (user, distance) =>
 				Json.toJson(user).as[JsObject] + ("distance" -> JsNumber(distance))
-			}
-			Ok(Json.toJson(combined))
+			})
 		}
 	}
 
+	def search(q: String) = AuthApiAction.async { implicit req =>
+		users.search(q).map(results => Ok(results))
+	}
+
 	def friendsList(uid: String) = AuthApiAction.async { implicit req =>
-		friends.list(userId(uid)).map { friends =>
-			Ok(friends.map(Json.toJson(_)))
-		}
+		friends.list(userId(uid)).map(friends => Ok(friends))
 	}
 
 	def friendAdd(uid: String, other: Int) = AuthApiAction.async { implicit req =>
