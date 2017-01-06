@@ -53,6 +53,25 @@ class EventsController @Inject() (events: EventService)
 		}.get
 	}
 
+	/** Updates an event */
+	def patch(id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		ensureEventEditable(id) {
+			events.patch(id, req.body.as[JsObject])
+					.map(ev => Ok(ev))
+					.orElse(NotFound('EVENT_NOT_FOUND))
+		}
+	}
+
+	/** Deletes an event */
+	def delete(id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		ensureEventEditable(id) {
+			events.delete(id).map {
+				case true => NoContent
+				case false => NotFound('EVENT_NOT_FOUND)
+			}
+		}
+	}
+
 	/** Searches for nearby events. */
 	def nearby(lat: Double, lon: Double, radius: Double) = AuthApiAction.async {
 		events.nearby((lat, lon), radius).map { events =>
@@ -89,11 +108,9 @@ class EventsController @Inject() (events: EventService)
 	/** Updates a specific Point of Interest for a given event. */
 	def updatePOI(event: Int, id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
 		ensureEventEditable(event) {
-			val poi = (req.body.as[JsObject] ++ Json.obj("event" -> event, "id" -> id)).as[PointOfInterest]
-			events.updatePOI(poi).map {
-				case true => NoContent
-				case false => NotFound('EVENT_POI_NOT_FOUND)
-			}
+			events.patchPOI(event, id, req.body.as[JsObject])
+					.map(poi => Ok(poi))
+					.orElse(NotFound('EVENT_POI_NOT_FOUND))
 		}
 	}
 

@@ -2,9 +2,10 @@ package services
 
 import com.google.inject.{Inject, Singleton}
 import models._
+import play.api.libs.json.JsObject
 import scala.concurrent.{ExecutionContext, Future}
-import utils.Coordinates
 import utils.SlickAPI._
+import utils.{Coordinates, Patch}
 
 @Singleton
 class EventService @Inject() (implicit ec: ExecutionContext) {
@@ -18,6 +19,38 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	def canEditEvent(event: Int)(implicit pov: Users.PointOfView): Future[Boolean] = {
 		if (pov.admin) Future.successful(true)
 		else Events.findById(event).filter(e => e.owner === pov.user.id).exists.run
+	}
+
+	/**
+	  * Patches an event.
+	  *
+	  * @param event the id of the event to patch
+	  * @param patch the patch documents
+	  * @return a future that will be resolved to the full, updated event
+	  */
+	def patch(event: Int, patch: JsObject): Future[Event] = {
+		Patch(Events.findById(event))
+				.MapField("title", _.title)
+				.MapField("desc", _.desc)
+				.MapField("begin", _.begin)
+				.MapField("end", _.end)
+				.MapField("spontaneous", _.spontaneous)
+				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+				.MapField("radius", _.radius)
+				.Execute(patch)
+	}
+
+	/**
+	  * Deletes an event.
+	  *
+	  * @param event the event id
+	  * @return a future that will be resolved to true if an event was deleted, false otherwise.
+	  */
+	def delete(event: Int): Future[Boolean] = {
+		Events.findById(event).delete.run.map {
+			case 0 => false
+			case 1 => true
+		}
 	}
 
 	/**
@@ -57,16 +90,19 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	}
 
 	/**
-	  * Updates a Point of Interest.
+	  * Patches a Point of Interest.
 	  *
-	  * @param poi the POI object to store
-	  * @return a future that will resolve to true if the POI was updated, to false otherwise
+	  * @param event the event id of this POI
+	  * @param id    the id of this POI
+	  * @param patch the patch document
+	  * @return a future that will be resolved with the updated point of interest
 	  */
-	def updatePOI(poi: PointOfInterest): Future[Boolean] = {
-		PointsOfInterest.findByKey(poi.event, poi.id).update(poi).run.map {
-			case 0 => false
-			case 1 => true
-		}
+	def patchPOI(event: Int, id: Int, patch: JsObject): Future[PointOfInterest] = {
+		Patch(PointsOfInterest.findByKey(event, id))
+				.MapField("title", _.title)
+				.MapField("desc", _.desc)
+				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+				.Execute(patch)
 	}
 
 	/**
