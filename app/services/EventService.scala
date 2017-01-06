@@ -22,6 +22,25 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	}
 
 	/**
+	  * Patches an event.
+	  *
+	  * @param event the id of the event to patch
+	  * @param patch the patch documents
+	  * @return a future that will be resolved to the full, updated event
+	  */
+	def patch(event: Int, patch: JsObject): Future[Event] = {
+		Patch(Events.findById(event))
+				.MapField("title", _.title)
+				.MapField("desc", _.desc)
+				.MapField("begin", _.begin)
+				.MapField("end", _.end)
+				.MapField("spontaneous", _.spontaneous)
+				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+				.MapField("radius", _.radius)
+				.Execute(patch)
+	}
+
+	/**
 	  * Deletes an event.
 	  *
 	  * @param event the event id

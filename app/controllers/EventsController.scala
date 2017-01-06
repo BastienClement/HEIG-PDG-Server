@@ -53,6 +53,15 @@ class EventsController @Inject() (events: EventService)
 		}.get
 	}
 
+	/** Updates an event */
+	def patch(id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		ensureEventEditable(id) {
+			events.patch(id, req.body.as[JsObject])
+					.map(ev => Ok(ev))
+					.orElse(NotFound('EVENT_NOT_FOUND))
+		}
+	}
+
 	/** Deletes an event */
 	def delete(id: Int) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
 		ensureEventEditable(id) {
