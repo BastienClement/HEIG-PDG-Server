@@ -67,7 +67,8 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 			FROM events
 			WHERE earth_box(ll_to_earth(${lat}, ${lon}), ${radius}) @> ll_to_earth(lat, lon)
 				AND earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) <= ${radius}
-			ORDER BY dist ASC""".as[(Event, Double)].run
+			ORDER BY dist ASC
+			LIMIT 100""".as[(Event, Double)].run
 	}
 
 	/**

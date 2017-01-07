@@ -105,6 +105,7 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 					EXISTS(
 						SELECT * FROM friends WHERE (a = ${pov.user.id} AND b = id) OR (a = id AND b = ${pov.user.id})
 					))
-			ORDER BY dist ASC""".as[(User, Double)].run
+			ORDER BY dist ASC
+			LIMIT 100""".as[(User, Double)].run
 	}
 }
