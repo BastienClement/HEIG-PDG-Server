@@ -1,47 +1,50 @@
 # Routes
 
 # Authentication
-POST          /auth/token                       controllers.AuthController.token
-POST          /auth/launch                      controllers.AuthController.launch
-POST          /auth/extend                      controllers.AuthController.extend
+POST          /auth/token                               controllers.AuthController.token
+POST          /auth/launch                              controllers.AuthController.launch
+POST          /auth/extend                              controllers.AuthController.extend
 
 # Events
-GET           /events                           controllers.EventsController.list
-POST          /events                           controllers.EventsController.create
-GET           /events/nearby                    controllers.EventsController.nearby(lat: Double, lon: Double, radius: Double ?= 1000)
-GET           /events/:id                       controllers.EventsController.get(id: Int)
-PATCH         /events/:id                       controllers.EventsController.patch(id: Int)
-DELETE        /events/:id                       controllers.EventsController.delete(id: Int)
+GET           /events                                   controllers.EventsController.list
+POST          /events                                   controllers.EventsController.create
+GET           /events/nearby                            controllers.EventsController.nearby(lat: Double, lon: Double, radius: Double ?= 1000)
+GET           /events/:id                               controllers.EventsController.get(id: Int)
+PATCH         /events/:id                               controllers.EventsController.patch(id: Int)
+DELETE        /events/:id                               controllers.EventsController.delete(id: Int)
 
 # POIs
-GET           /events/:eid/poi                  controllers.EventsController.listPOI(eid: Int)
-POST          /events/:eid/poi                  controllers.EventsController.createPOI(eid: Int)
-GET           /events/:eid/poi/:poi             controllers.EventsController.getPOI(eid: Int, poi: Int)
-PATCH         /events/:eid/poi/:poi             controllers.EventsController.updatePOI(eid: Int, poi: Int)
-DELETE        /events/:eid/poi/:poi             controllers.EventsController.removePOI(eid: Int, poi: Int)
+GET           /events/:eid/poi                          controllers.EventsController.listPOI(eid: Int)
+POST          /events/:eid/poi                          controllers.EventsController.createPOI(eid: Int)
+GET           /events/:eid/poi/:poi                     controllers.EventsController.getPOI(eid: Int, poi: Int)
+PATCH         /events/:eid/poi/:poi                     controllers.EventsController.updatePOI(eid: Int, poi: Int)
+DELETE        /events/:eid/poi/:poi                     controllers.EventsController.removePOI(eid: Int, poi: Int)
 
 # Users
-GET           /users                            controllers.UsersController.list
-GET           /users/nearby                     controllers.UsersController.nearby(lat: Double, lon: Double, radius: Double ?= 1000, all: Boolean ?= false)
-GET           /users/search                     controllers.UsersController.search(q: String ?= "")
-PUT           /users/self/location              controllers.UsersController.location
-GET           /users/:uid                       controllers.UsersController.user(uid)
-PATCH         /users/:uid                       controllers.UsersController.patch(uid)
-GET           /users/:uid/rank                  controllers.UsersController.rank(uid)
-PUT           /users/:uid/rank                  controllers.UsersController.promote(uid)
+GET           /users                                    controllers.UsersController.list
+GET           /users/nearby                             controllers.UsersController.nearby(lat: Double, lon: Double, radius: Double ?= 1000, all: Boolean ?= false)
+GET           /users/search                             controllers.UsersController.search(q: String ?= "")
+PUT           /users/self/location                      controllers.UsersController.location
+GET           /users/:uid                               controllers.UsersController.user(uid)
+PATCH         /users/:uid                               controllers.UsersController.patch(uid)
+GET           /users/:uid/rank                          controllers.UsersController.rank(uid)
+PUT           /users/:uid/rank                          controllers.UsersController.promote(uid)
 
 # Friends
-GET           /users/:uid/friends               controllers.UsersController.friendsList(uid)
-PUT           /users/:uid/friends/:other        controllers.UsersController.friendAdd(uid, other: Int)
-DELETE        /users/:uid/friends/:other        controllers.UsersController.friendRemove(uid, other: Int)
+GET           /users/:uid/friends                       controllers.UsersController.friendsList(uid)
+GET           /users/self/friends/requests              controllers.UsersController.friendRequests
+PUT           /users/self/friends/requests/:user        controllers.UsersController.friendSend(user: Int)
+PUT           /users/self/friends/:user                 controllers.UsersController.friendAccept(user: Int)
+DELETE        /users/self/friends/requests/:user        controllers.UsersController.friendDecline(user: Int)
+DELETE        /users/self/friends/:user                 controllers.UsersController.friendRemove(user: Int)
 
 # Server status
-GET           /status                           controllers.DummyController.status
-GET           /                                 controllers.DummyController.status
+GET           /status                                   controllers.DummyController.status
+GET           /                                         controllers.DummyController.status
 
 # Catch All
-GET           /*path                            controllers.DummyController.undefined(path)
-POST          /*path                            controllers.DummyController.undefined(path)
-PUT           /*path                            controllers.DummyController.undefined(path)
-PATCH         /*path                            controllers.DummyController.undefined(path)
-DELETE        /*path                            controllers.DummyController.undefined(path)
+GET           /*path                                    controllers.DummyController.undefined(path)
+POST          /*path                                    controllers.DummyController.undefined(path)
+PUT           /*path                                    controllers.DummyController.undefined(path)
+PATCH         /*path                                    controllers.DummyController.undefined(path)
+DELETE        /*path                                    controllers.DummyController.undefined(path)

@@ -143,6 +143,6 @@ object Users extends TableQuery(new Users(_)) {
 		def writes(user: User): JsValue = UserViewWrites.writes(user.view)
 	}
 
-	def findById(id: Int): Query[Users, User, Seq] = Users.filter(_.id === id)
+	def findById(id: Rep[Int]): Query[Users, User, Seq] = Users.filter(_.id === id)
 	def findById(ids: Seq[Int]): Query[Users, User, Seq] = Users.filter(_.id inSet ids)
 }

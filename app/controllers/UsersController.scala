@@ -133,11 +133,37 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		friends.list(userId(uid)).map(friends => Ok(friends))
 	}
 
-	def friendAdd(uid: String, other: Int) = AuthApiAction.async { implicit req =>
-		friends.add(userId(uid, selfOnly = true), other).replace(NoContent).orElse(BadRequest)
+	def friendRequests = AuthApiAction.async { implicit req =>
+		friends.requests(req.user.id).map { requests =>
+			Ok(requests.map { case (user, date) =>
+				Json.obj("user" -> user, "date" -> date)
+			})
+		}
 	}
 
-	def friendRemove(uid: String, other: Int) = AuthApiAction.async { implicit req =>
-		friends.remove(userId(uid, selfOnly = true), other).replace(NoContent).orElse(NotFound)
+	def friendSend(other: Int) = AuthApiAction.async { implicit req =>
+		if (other == req.user.id) throw ApiException('USER_FRIEND_SELF_REQUEST, BadRequest)
+		friends.request(req.user.id, other).map {
+			case true => NoContent
+			case false => Conflict('USER_FRIEND_DUPLICATE)
+		}
+	}
+
+	def friendAccept(other: Int) = AuthApiAction.async { implicit req =>
+		friends.accept(req.user.id, other).map {
+			case true => NoContent
+			case false => NotFound('USER_FRIEND_NO_REQUEST)
+		}
+	}
+
+	def friendDecline(other: Int) = AuthApiAction.async { implicit req =>
+		friends.decline(req.user.id, other).map {
+			case true => NoContent
+			case false => NotFound('USER_FRIEND_NO_REQUEST)
+		}
+	}
+
+	def friendRemove(other: Int) = AuthApiAction.async { implicit req =>
+		friends.remove(req.user.id, other).replace(NoContent).orElse(NotFound)
 	}
 }

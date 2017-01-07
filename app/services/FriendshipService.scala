@@ -2,10 +2,11 @@ package services
 
 import com.google.inject.{Inject, Singleton}
 import java.util.NoSuchElementException
-import models.{Friendship, Friendships, User, Users}
+import models._
 import play.api.cache.CacheApi
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import utils.DateTime
 import utils.SlickAPI._
 
 /**
@@ -48,20 +49,61 @@ class FriendshipService @Inject() (cache: CacheApi)
 	  */
 	def friends(a: Int, b: Int): Boolean = if (a > b) friends(b, a) else exists(a, b)
 
+	/** Internal implementation of the exists check with caching mechanism */
 	private def exists(a: Int, b: Int) = cache.getOrElse(cacheKey(a, b), 5.minutes) {
 		Await.result(Friendships.exists(a, b).run, Duration.Inf)
 	}
 
 	/**
-	  * Adds a new friendship between a and b.
+	  * Lists friends.
 	  *
-	  * @param a the first user id
-	  * @param b the second user id
-	  * @return a future that will be completed once the database is updated
+	  * @param user the user whose friends should be listed
 	  */
-	def add(a: Int, b: Int): Future[_] = if (a > b) add(b, a) else {
-		cache.remove(cacheKey(a, b))
-		(Friendships += Friendship(a, b)).run
+	def list(user: Int): Future[Seq[User]] = {
+		Users.filter(other => Friendships.exists(user, other.id)).run
+	}
+
+	/**
+	  * Lists pending friendship requests.
+	  *
+	  * @param user the user whose friends should be listed
+	  */
+	def requests(user: Int): Future[Seq[(User, DateTime)]] = {
+		(for {
+			request <- FriendRequests.filter(r => r.recipient === user).sortBy(r => r.date.desc)
+			user <- Users.findById(request.sender)
+		} yield (user, request.date)).run
+	}
+
+	def request(sender: Int, recipient: Int): Future[Boolean] = {
+		(FriendRequests.between(sender, recipient).exists || Friendships.exists(sender, recipient)).result.flatMap {
+			case false =>
+				FriendRequests += FriendRequest(sender, recipient)
+			case true =>
+				throw new IllegalStateException()
+		}.transactionally.run.map(_ => true).recover { case _ => false }
+	}
+
+	def accept(recipient: Int, sender: Int): Future[Boolean] = {
+		val a = if (recipient < sender) recipient else sender
+		val b = if (recipient < sender) sender else recipient
+
+		FriendRequests.findByKey(sender, recipient).delete.flatMap {
+			case 1 => Friendships += Friendship(a, b)
+			case 0 => throw new IllegalStateException()
+		}.transactionally.run.map { _ =>
+			cache.remove(cacheKey(a, b))
+			true
+		}.recover {
+			case _ => false
+		}
+	}
+
+	def decline(recipient: Int, sender: Int): Future[Boolean] = {
+		FriendRequests.findByKey(sender, recipient).delete.run.map {
+			case 1 => true
+			case 0 => false
+		}
 	}
 
 	/**
@@ -77,9 +119,5 @@ class FriendshipService @Inject() (cache: CacheApi)
 			case 0 => throw new NoSuchElementException
 			case _ => ()
 		}
-	}
-
-	def list(user: Int): Future[Seq[User]] = {
-		Users.filter(other => Friendships.exists(user, other.id)).run
 	}
 }
