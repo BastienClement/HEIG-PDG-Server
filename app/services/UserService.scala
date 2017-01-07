@@ -3,9 +3,11 @@ package services
 import com.google.inject.{Inject, Singleton}
 import models.{User, Users}
 import org.apache.commons.codec.digest.DigestUtils
+import play.api.libs.json.JsObject
 import scala.concurrent.{ExecutionContext, Future}
+import utils.DateTime.Units
 import utils.SlickAPI._
-import utils.{Coordinates, DateTime}
+import utils.{BCrypt, Coordinates, DateTime, Patch}
 
 @Singleton
 class UserService @Inject() (implicit ec: ExecutionContext) {
@@ -28,13 +30,37 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 		}
 	}
 
+	def promote(id: Int, rank: Int): Future[Boolean] = {
+		Users.findById(id).map(_.rank).update(rank).run.map {
+			case 1 => true
+			case 0 => false
+		}
+	}
+
+	/**
+	  * Patches a user.
+	  *
+	  * @param id
+	  * @param patch
+	  * @return
+	  */
+	def patch(id: Int, patch: JsObject): Future[User] = {
+		Patch(Users.findById(id))
+				.MapField("username", _.username)
+				.MapField("firstname", _.firstname)
+				.MapField("lastname", _.lastname)
+				.MapField("mail", _.mail)
+				.Map(d => (d \ "password").asOpt[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt())), _.pass)
+				.Execute(patch)
+	}
+
 	/**
 	  * Searches for users matching the given query.
 	  *
 	  * This method only searches for non-friend users, also excluding the user itself.
 	  * At most 50 results will be returned, sorted by increasing distance from the current location.
 	  *
-	  * @param q the query string
+	  * @param q   the query string
 	  * @param pov the point of view
 	  * @return a list of users matching the query
 	  */
@@ -68,15 +94,18 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	def nearby(point: Coordinates, radius: Double, all: Boolean = false)
 	          (implicit pov: Users.PointOfView): Future[Seq[(User, Double)]] = {
 		val (lat, lon) = Coordinates.unpack(point)
+		val expiration = (DateTime.now - 55.minutes).toTimestamp
 		sql"""
 			SELECT *, earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) AS dist
 			FROM users
 			WHERE earth_box(ll_to_earth(${lat}, ${lon}), ${radius}) @> ll_to_earth(lat, lon)
 				AND earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) <= ${radius}
+				AND updated > ${expiration}
 				AND (${all && pov.admin} OR
 					EXISTS(
 						SELECT * FROM friends WHERE (a = ${pov.user.id} AND b = id) OR (a = id AND b = ${pov.user.id})
 					))
-			ORDER BY dist ASC""".as[(User, Double)].run
+			ORDER BY dist ASC
+			LIMIT 100""".as[(User, Double)].run
 	}
 }

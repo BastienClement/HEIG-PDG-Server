@@ -6,6 +6,7 @@ import models.{User, Users}
 import play.api.Application
 import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
+import scala.concurrent.Future
 import scala.util.Try
 import services.{FriendshipService, UserService}
 import utils.SlickAPI._
@@ -34,9 +35,9 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	                       (implicit req: ApiRequest[A]): Int = uid match {
 		case "self" => req.user.id
 		case _ =>
-			val id = Try(uid.toInt).getOrElse(throw ApiException('USERS_INVALID_UID, UnprocessableEntity))
+			val id = Try(uid.toInt).getOrElse(throw ApiException('USER_INVALID_UID, UnprocessableEntity))
 			if (!selfOnly || req.userOpt.exists(u => u.id == id || (!strict && u.admin))) id
-			else throw ApiException('USERS_ACTION_SELF_ONLY, Forbidden)
+			else throw ApiException('SELF_ONLY_ACTION, Forbidden)
 	}
 
 	/**
@@ -72,7 +73,36 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	  * @param user the user id or the keyword "self"
 	  */
 	def user(user: String) = AuthApiAction.async { implicit req =>
-		users.get(userId(user)).map(u => Ok(Json.toJson(u))).orElse(NotFound('USERS_USER_NOT_FOUND))
+		users.get(userId(user)).map(u => Ok(u)).orElse(NotFound('USER_NOT_FOUND))
+	}
+
+	/**
+	  * Returns user rank value.
+	  *
+	  * @param user the user id or the keyword "self"
+	  */
+	def rank(user: String) = AuthApiAction.async { implicit req =>
+		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
+		else users.get(userId(user)).map(u => Ok(u.rank)).orElse(NotFound('USERS_USER_NOT_FOUND))
+	}
+
+	/**
+	  * Returns user rank value.
+	  *
+	  * @param user the user id or the keyword "self"
+	  */
+	def promote(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
+		else users.promote(userId(user), req.body.as[Int]).replace(NoContent).orElse(NotFound('USER_NOT_FOUND))
+	}
+
+	/**
+	  * Updates user information.
+	  *
+	  * @param user the user id ot the keyword "self"
+	  */
+	def patch(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		users.patch(userId(user, selfOnly = true), req.body.as[JsObject]).map(u => Ok(u))
 	}
 
 	/**
@@ -103,11 +133,37 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		friends.list(userId(uid)).map(friends => Ok(friends))
 	}
 
-	def friendAdd(uid: String, other: Int) = AuthApiAction.async { implicit req =>
-		friends.add(userId(uid, selfOnly = true), other).replace(NoContent).orElse(BadRequest)
+	def friendRequests = AuthApiAction.async { implicit req =>
+		friends.requests(req.user.id).map { requests =>
+			Ok(requests.map { case (user, date) =>
+				Json.obj("user" -> user, "date" -> date)
+			})
+		}
 	}
 
-	def friendRemove(uid: String, other: Int) = AuthApiAction.async { implicit req =>
-		friends.remove(userId(uid, selfOnly = true), other).replace(NoContent).orElse(NotFound)
+	def friendSend(other: Int) = AuthApiAction.async { implicit req =>
+		if (other == req.user.id) throw ApiException('USER_FRIEND_SELF_REQUEST, BadRequest)
+		friends.request(req.user.id, other).map {
+			case true => NoContent
+			case false => Conflict('USER_FRIEND_DUPLICATE)
+		}
+	}
+
+	def friendAccept(other: Int) = AuthApiAction.async { implicit req =>
+		friends.accept(req.user.id, other).map {
+			case true => NoContent
+			case false => NotFound('USER_FRIEND_NO_REQUEST)
+		}
+	}
+
+	def friendDecline(other: Int) = AuthApiAction.async { implicit req =>
+		friends.decline(req.user.id, other).map {
+			case true => NoContent
+			case false => NotFound('USER_FRIEND_NO_REQUEST)
+		}
+	}
+
+	def friendRemove(other: Int) = AuthApiAction.async { implicit req =>
+		friends.remove(req.user.id, other).replace(NoContent).orElse(NotFound)
 	}
 }

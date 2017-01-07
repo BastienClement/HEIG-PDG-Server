@@ -133,6 +133,7 @@ trait ApiActionBuilder extends Controller {
 		override def invokeBlock[A](request: Request[A], block: (ApiRequest[A]) => Future[Result]): Future[Result] = {
 			ApiAction.transform(request).flatMap { req =>
 				if (req.anon) Unauthorized('AUTHORIZATION_REQUIRED)
+				else if (req.user.banned) throw ApiException('USER_BANNED, Forbidden)
 				else wrap(block)(req)
 			}
 		}

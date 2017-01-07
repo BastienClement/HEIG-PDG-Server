@@ -140,7 +140,7 @@ class DateTime private (val instant: Instant) {
 	lazy val toISOString = date.format(DateTime.isoFormat)
 
 	// SQL Timestamp
-	private lazy val toTimestamp = {
+	lazy val toTimestamp = {
 		val cal = new GregorianCalendar
 		cal.set(year, month - 1, day, hour, minute, second)
 		cal.set(Calendar.MILLISECOND, 0)

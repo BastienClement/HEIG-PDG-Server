@@ -1,7 +1,7 @@
 package controllers
 
 import com.google.inject.{Inject, Provider, Singleton}
-import controllers.api.ApiActionBuilder
+import controllers.api.{ApiActionBuilder, ApiException}
 import models.{User, Users}
 import play.api.Application
 import play.api.libs.json.Json
@@ -43,6 +43,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 		Users.filter(u => u.mail === mail).map(u => (u, u.pass)).head.filter { case (_, refPass) =>
 			crypto.check(pass, refPass)
 		}.map { case (u, _) =>
+			if (u.banned) throw ApiException('USER_BANNED, Forbidden)
 			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))(new Users.PointOfView(u))
 		}.recover { case e =>
 			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)

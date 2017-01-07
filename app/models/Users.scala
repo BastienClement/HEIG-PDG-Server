@@ -12,8 +12,8 @@ import utils.{Coordinates, DateTime, UsingImplicits}
   * An Eventail user.
   *
   * @param id        the user's id
-  * @param firstname the user's firstname
-  * @param lastname  the user's lastname
+  * @param firstname the user's first name
+  * @param lastname  the user's last name
   * @param username  the user's display name
   * @param mail      the user's e-mail address
   * @param rank      the user's rank index
@@ -25,6 +25,12 @@ case class User(id: Int, firstname: String, lastname: String, username: String,
 		extends UsingImplicits[Users] {
 	/** Whether the user is an administrator user. */
 	def admin: Boolean = rank == Users.Rank.Admin
+
+	/** Whether the user is restricted */
+	def restricted: Boolean = rank >= Users.Rank.Restricted
+
+	/** Whether the user is banned */
+	def banned: Boolean = rank >= Users.Rank.Banned
 
 	/** The current user's location, if available. */
 	def location: Option[Coordinates] = {
@@ -66,9 +72,9 @@ object Users extends TableQuery(new Users(_)) {
 	/** Rank values */
 	object Rank {
 		final val Admin = 0
-		final val User = 3
-		final val Restricted = 5
-		final val Banned = 10
+		final val User = 1
+		final val Restricted = 2
+		final val Banned = 3
 	}
 
 	/**
@@ -137,6 +143,6 @@ object Users extends TableQuery(new Users(_)) {
 		def writes(user: User): JsValue = UserViewWrites.writes(user.view)
 	}
 
-	def findById(id: Int): Query[Users, User, Seq] = Users.filter(_.id === id)
+	def findById(id: Rep[Int]): Query[Users, User, Seq] = Users.filter(_.id === id)
 	def findById(ids: Seq[Int]): Query[Users, User, Seq] = Users.filter(_.id inSet ids)
 }
