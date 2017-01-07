@@ -5,6 +5,7 @@ import models.{User, Users}
 import org.apache.commons.codec.digest.DigestUtils
 import play.api.libs.json.JsObject
 import scala.concurrent.{ExecutionContext, Future}
+import utils.DateTime.Units
 import utils.SlickAPI._
 import utils.{BCrypt, Coordinates, DateTime, Patch}
 
@@ -93,11 +94,13 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	def nearby(point: Coordinates, radius: Double, all: Boolean = false)
 	          (implicit pov: Users.PointOfView): Future[Seq[(User, Double)]] = {
 		val (lat, lon) = Coordinates.unpack(point)
+		val expiration = (DateTime.now - 55.minutes).toTimestamp
 		sql"""
 			SELECT *, earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) AS dist
 			FROM users
 			WHERE earth_box(ll_to_earth(${lat}, ${lon}), ${radius}) @> ll_to_earth(lat, lon)
 				AND earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) <= ${radius}
+				AND updated > ${expiration}
 				AND (${all && pov.admin} OR
 					EXISTS(
 						SELECT * FROM friends WHERE (a = ${pov.user.id} AND b = id) OR (a = id AND b = ${pov.user.id})
