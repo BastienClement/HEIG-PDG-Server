@@ -2,6 +2,7 @@ package utils
 
 object ErrorStrings {
 	private val msg = Map[Symbol, String](
+		'ADMIN_ACTION_RESTRICTED -> "This action can only be performed by administrator users.",
 		'AUTH_TOKEN_BAD_CREDENTIALS -> "This user is unknown or the password is incorrect.",
 		'AUTHORIZATION_REQUIRED -> "This endpoint requires a valid authorization token.",
 		'EVENT_NOT_FOUND -> "The requested event does not exist.",
@@ -10,6 +11,8 @@ object ErrorStrings {
 		'GENERIC_SERVER_ERROR -> "Something is wrong with the server.",
 		'UNCAUGHT_EXCEPTION -> "An exception occurred during the processing of this request.",
 		'UNPROCESSABLE_ENTITY -> "The request does not conform to the expected input for this API action.",
+		'USER_BANNED -> "This account has been banned and can no longer issue API requests.",
+		'USER_RESTRICTED -> "This account has been temporarily restricted and cannot perform this action.",
 		'USERS_ACTION_SELF_ONLY -> "This action can only be executed for the user itself."
 	)
 

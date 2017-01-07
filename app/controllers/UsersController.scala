@@ -82,7 +82,7 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	  * @param user the user id or the keyword "self"
 	  */
 	def rank(user: String) = AuthApiAction.async { implicit req =>
-		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ONLY))
+		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
 		else users.get(userId(user)).map(u => Ok(u.rank)).orElse(NotFound('USERS_USER_NOT_FOUND))
 	}
 
@@ -92,7 +92,7 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	  * @param user the user id or the keyword "self"
 	  */
 	def promote(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
-		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ONLY))
+		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
 		else users.promote(userId(user), req.body.as[Int]).replace(NoContent).orElse(NotFound('USERS_USER_NOT_FOUND))
 	}
 

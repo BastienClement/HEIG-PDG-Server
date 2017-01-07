@@ -12,8 +12,8 @@ import utils.{Coordinates, DateTime, UsingImplicits}
   * An Eventail user.
   *
   * @param id        the user's id
-  * @param firstname the user's firstname
-  * @param lastname  the user's lastname
+  * @param firstname the user's first name
+  * @param lastname  the user's last name
   * @param username  the user's display name
   * @param mail      the user's e-mail address
   * @param rank      the user's rank index

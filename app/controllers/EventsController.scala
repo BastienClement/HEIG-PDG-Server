@@ -1,7 +1,7 @@
 package controllers
 
 import com.google.inject.{Inject, Provider, Singleton}
-import controllers.api.ApiActionBuilder
+import controllers.api.{ApiActionBuilder, ApiException}
 import models._
 import play.api.Application
 import play.api.libs.json.{JsNumber, JsObject, Json}
@@ -42,6 +42,7 @@ class EventsController @Inject() (events: EventService)
 
 	/** Creates a new event. */
 	def create = AuthApiAction.async(parse.tolerantJson) { req =>
+		if (req.user.restricted) throw ApiException('USER_RESTRICTED, Forbidden)
 		Try {
 			val body = req.body.as[JsObject]
 			val spontaneous = (body \ "spontaneous").asOpt[Boolean].getOrElse(false)
