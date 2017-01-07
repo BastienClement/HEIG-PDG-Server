@@ -19,15 +19,32 @@ import utils.{DateTime, ErrorStrings}
 
 /**
   * Mixin trait for API controllers.
-  * The controller must be injected with conf and an execution context.
+  *
+  * This trait is a collection of utilities and implicits that are common to all
+  * controller implementations in Eventail. It defined the basis of the error
+  * handling mechanism and provide generic security checks for requests authentication.
+  *
+  * The actual controller instance should be injected with a Provider[Application],
+  * allowing this trait to automatically pull in other dependencies without bloating
+  * the injection list of the controller.
   */
 trait ApiActionBuilder extends Controller {
+	/** A provider of the Application instance */
 	val app: Provider[Application]
+
+	/** Pulls a dependency from the application injector */
 	private def pull[T: ClassTag]: T = app.get.injector.instanceOf[T]
 
+	/** The Play-provided execution context */
 	implicit lazy val ec = pull[ExecutionContext]
+
+	/** An instance of the crypto service */
 	implicit lazy val crypto = pull[CryptoService]
+
+	/** An instance of the cache service */
 	implicit lazy val cache = pull[CacheApi]
+
+	/** An instance of the friendship service */
 	implicit lazy val fs = pull[FriendshipService]
 
 	/**
@@ -46,17 +63,19 @@ trait ApiActionBuilder extends Controller {
 		)
 	}
 
+	/** Writes instance for Throwables */
 	implicit val throwableWrites: Writes[Throwable] = Writes[Throwable](serializeThrowable(_))
+
+	/** Writes instance for Symbols */
+	implicit val errorSymbol: Writeable[Symbol] = Writeable[Symbol](
+		writeSymbol.andThen(implicitly[Writeable[JsValue]].transform),
+		Some("application/json")
+	)
 
 	/** Error message JS object */
 	val writeSymbol: (Symbol => JsObject) = sym => Json.obj(
 		"error" -> sym.name,
 		"message" -> ErrorStrings.get(sym)
-	)
-
-	implicit val errorSymbol = Writeable[Symbol](
-		writeSymbol.andThen(implicitly[Writeable[JsValue]].transform),
-		Some("application/json")
 	)
 
 	implicit class WithOpsJsObject(val obj: JsObject) {
