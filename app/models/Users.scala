@@ -26,6 +26,12 @@ case class User(id: Int, firstname: String, lastname: String, username: String,
 	/** Whether the user is an administrator user. */
 	def admin: Boolean = rank == Users.Rank.Admin
 
+	/** Whether the user is restricted */
+	def restricted: Boolean = rank >= Users.Rank.Restricted
+
+	/** Whether the user is banned */
+	def banned: Boolean = rank >= Users.Rank.Banned
+
 	/** The current user's location, if available. */
 	def location: Option[Coordinates] = {
 		if (updated + 1.hour < DateTime.now) None
@@ -66,9 +72,9 @@ object Users extends TableQuery(new Users(_)) {
 	/** Rank values */
 	object Rank {
 		final val Admin = 0
-		final val User = 3
-		final val Restricted = 5
-		final val Banned = 10
+		final val User = 1
+		final val Restricted = 2
+		final val Banned = 3
 	}
 
 	/**
