@@ -6,6 +6,7 @@ import models.{User, Users}
 import play.api.Application
 import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
+import scala.concurrent.Future
 import scala.util.Try
 import services.{FriendshipService, UserService}
 import utils.SlickAPI._
@@ -72,7 +73,36 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	  * @param user the user id or the keyword "self"
 	  */
 	def user(user: String) = AuthApiAction.async { implicit req =>
-		users.get(userId(user)).map(u => Ok(Json.toJson(u))).orElse(NotFound('USERS_USER_NOT_FOUND))
+		users.get(userId(user)).map(u => Ok(u)).orElse(NotFound('USERS_USER_NOT_FOUND))
+	}
+
+	/**
+	  * Returns user rank value.
+	  *
+	  * @param user the user id or the keyword "self"
+	  */
+	def rank(user: String) = AuthApiAction.async { implicit req =>
+		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ONLY))
+		else users.get(userId(user)).map(u => Ok(u.rank)).orElse(NotFound('USERS_USER_NOT_FOUND))
+	}
+
+	/**
+	  * Returns user rank value.
+	  *
+	  * @param user the user id or the keyword "self"
+	  */
+	def promote(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ONLY))
+		else users.promote(userId(user), req.body.as[Int]).replace(NoContent).orElse(NotFound('USERS_USER_NOT_FOUND))
+	}
+
+	/**
+	  * Updates user information.
+	  *
+	  * @param user the user id ot the keyword "self"
+	  */
+	def patch(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		users.patch(userId(user, selfOnly = true), req.body.as[JsObject]).map(u => Ok(u))
 	}
 
 	/**
