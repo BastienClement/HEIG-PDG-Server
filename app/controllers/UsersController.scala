@@ -35,9 +35,9 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	                       (implicit req: ApiRequest[A]): Int = uid match {
 		case "self" => req.user.id
 		case _ =>
-			val id = Try(uid.toInt).getOrElse(throw ApiException('USERS_INVALID_UID, UnprocessableEntity))
+			val id = Try(uid.toInt).getOrElse(throw ApiException('USER_INVALID_UID, UnprocessableEntity))
 			if (!selfOnly || req.userOpt.exists(u => u.id == id || (!strict && u.admin))) id
-			else throw ApiException('USERS_ACTION_SELF_ONLY, Forbidden)
+			else throw ApiException('SELF_ONLY_ACTION, Forbidden)
 	}
 
 	/**
@@ -73,7 +73,7 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	  * @param user the user id or the keyword "self"
 	  */
 	def user(user: String) = AuthApiAction.async { implicit req =>
-		users.get(userId(user)).map(u => Ok(u)).orElse(NotFound('USERS_USER_NOT_FOUND))
+		users.get(userId(user)).map(u => Ok(u)).orElse(NotFound('USER_NOT_FOUND))
 	}
 
 	/**
@@ -93,7 +93,7 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	  */
 	def promote(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
 		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
-		else users.promote(userId(user), req.body.as[Int]).replace(NoContent).orElse(NotFound('USERS_USER_NOT_FOUND))
+		else users.promote(userId(user), req.body.as[Int]).replace(NoContent).orElse(NotFound('USER_NOT_FOUND))
 	}
 
 	/**

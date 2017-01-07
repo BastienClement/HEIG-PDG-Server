@@ -9,11 +9,13 @@ object ErrorStrings {
 		'EVENT_POI_NOT_FOUND -> "The requested point of interest does not exist.",
 		'GENERIC_CLIENT_ERROR -> "Something is wrong with this request.",
 		'GENERIC_SERVER_ERROR -> "Something is wrong with the server.",
+		'SELF_ONLY_ACTION -> "This action can only be executed for the user itself.",
 		'UNCAUGHT_EXCEPTION -> "An exception occurred during the processing of this request.",
 		'UNPROCESSABLE_ENTITY -> "The request does not conform to the expected input for this API action.",
 		'USER_BANNED -> "This account has been banned and can no longer issue API requests.",
-		'USER_RESTRICTED -> "This account has been temporarily restricted and cannot perform this action.",
-		'USERS_ACTION_SELF_ONLY -> "This action can only be executed for the user itself."
+		'USER_INVALID_UID -> "The provided user id is invalid (must be integer or keyword 'self').",
+		'USER_NOT_FOUND -> "The requested user does not exist.",
+		'USER_RESTRICTED -> "This account has been temporarily restricted and cannot perform this action."
 	)
 
 	def get(err: Symbol): String = msg.getOrElse(err, err.name)
