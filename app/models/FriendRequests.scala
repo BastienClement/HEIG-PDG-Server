@@ -6,6 +6,7 @@ import utils.SlickAPI._
 
 case class FriendRequest(sender: Int, recipient: Int, date: DateTime = DateTime.now)
 
+//noinspection TypeAnnotation
 class FriendRequests(tag: Tag) extends Table[FriendRequest](tag, "requests") {
 	def sender = column[Int]("sender", O.PrimaryKey)
 	def recipient = column[Int]("recipient", O.PrimaryKey)

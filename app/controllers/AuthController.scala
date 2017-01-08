@@ -14,6 +14,15 @@ import utils.DateTime
 import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
 
+/**
+  * Authentication controller.
+  *
+  * Handle everything related to registration, authentication et application life-cycle management.
+  *
+  * @param crypto an instance of the crypto service
+  * @param users  an instance of the users service
+  * @param app    a provider for the Play application
+  */
 @Singleton
 class AuthController @Inject() (crypto: CryptoService, users: UserService)
                                (val app: Provider[Application])
@@ -21,10 +30,15 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	/**
 	  * Generates a new authentication token
 	  *
-	  * Currently generates one-year tokens, because it will be easier
-	  * on the client-side to not handle the re-authentication case.
+	  * By default, the generated tokens are valid for a 7-days period.
 	  *
-	  * @param user the user authenticated by the token
+	  * Administrator users can request an extended token that will stay valid
+	  * during during a 180 days period. This is intended for testing purposes
+	  * only and should not be used in actual client implementation.
+	  *
+	  * @param user     the user authenticated by the token
+	  * @param extended whether the token should have extended life-time
+	  * @param pov      the point of view of the user iteself
 	  */
 	private def genToken(user: User, extended: Boolean = false)(implicit pov: Users.PointOfView): Result = {
 		val duration = if (extended && user.admin) 180.days else 7.days
@@ -34,7 +48,8 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	}
 
 	/**
-	  * Request for a new authentication token from credentials
+	  * Request a new authorization token from user credentials.
+	  * Banned users are forbidden from requesting new authorization tokens.
 	  */
 	def token = ApiAction.async(parse.json) { req =>
 		val mail = (req.body \ "mail").to[String]
@@ -50,6 +65,13 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 		}
 	}
 
+	/**
+	  * Registers the launch of a client application.
+	  *
+	  * This update the currently active device of the user, allowing it to
+	  * perform location update, and implicitly disabled every other concurent
+	  * client instances.
+	  */
 	def launch = ApiAction.async { req =>
 		val active = req.userOpt match {
 			case Some(user) => users.setCurrentActiveDevice(user.id, req.token).replace(true)
@@ -58,6 +80,9 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 		active.map(a => Ok(Json.obj("active" -> a)))
 	}
 
+	/**
+	  * Extends the current token, returning a new token for the same user.
+	  */
 	def extend = AuthApiAction { implicit req =>
 		genToken(req.user)
 	}

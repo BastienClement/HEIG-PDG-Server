@@ -13,12 +13,27 @@ import utils.DateTime
 import utils.DateTime.Units
 import utils.SlickAPI._
 
+/**
+  * The events controller.
+  * This controller is responsible for everything related to events and points of interest.
+  *
+  * @param events an instance of the events service
+  * @param app    a provider for the Play-application instance
+  */
 @Singleton
 class EventsController @Inject() (events: EventService)
                                  (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
-
-	/** Ensures that an event is editable by the current user before executing the given action. */
+	/**
+	  * Ensures that an event is editable by the current user before executing the given action.
+	  * An event is only editable by its owner or an administrator user.
+	  *
+	  * @param event  the event id
+	  * @param action the action to perform if the event is editable
+	  * @param pov    the point of view of the user issuing the request
+	  * @tparam T the type of result returned by the action
+	  * @return the result of the action, if allowed to take place
+	  */
 	private def ensureEventEditable[T <: Result](event: Int)
 	                                            (action: => Future[T])
 	                                            (implicit pov: Users.PointOfView): Future[Result] = {
@@ -47,7 +62,7 @@ class EventsController @Inject() (events: EventService)
 			val body = req.body.as[JsObject]
 			val spontaneous = (body \ "spontaneous").asOpt[Boolean].getOrElse(false)
 			val base = Json.obj("id" -> 0, "owner" -> req.user.id)
-			val obj = if (spontaneous){
+			val obj = if (spontaneous) {
 				base ++ body ++ Json.obj(
 					"spontaneous" -> true,
 					"begin" -> DateTime.now,

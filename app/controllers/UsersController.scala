@@ -12,13 +12,13 @@ import services.{FriendshipService, UserService}
 import utils.SlickAPI._
 
 /**
-  * The controller handing user-related operations.
+  * The controller handing user-related and friendship management operations.
   *
   * @param users an instance of the UserService
   * @param app   the Play application instance
   */
 @Singleton
-class UsersController @Inject() (val users: UserService, val friends: FriendshipService)
+class UsersController @Inject() (users: UserService, friends: FriendshipService)
                                 (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**
@@ -79,6 +79,8 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	/**
 	  * Returns user rank value.
 	  *
+	  * This action is only available to administrator users.
+	  *
 	  * @param user the user id or the keyword "self"
 	  */
 	def rank(user: String) = AuthApiAction.async { implicit req =>
@@ -87,7 +89,9 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 	}
 
 	/**
-	  * Returns user rank value.
+	  * Updates the user rank.
+	  *
+	  * This action is only available to administrators users.
 	  *
 	  * @param user the user id or the keyword "self"
 	  */
@@ -117,6 +121,18 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		}
 	}
 
+	/**
+	  * Searches for users around a given location.
+	  *
+	  * By default, only friends are returned by this endpoint.
+	  * Administrators have the option to use the `all` option to ask for the
+	  * list of every user in the search radius, friends or not.
+	  *
+	  * @param lat    the latitude of the center of the search radius
+	  * @param lon    the longitude of the center of the search radius
+	  * @param radius the search radius in meters
+	  * @param all    whether to search for all users, not just friend; requires admin
+	  */
 	def nearby(lat: Double, lon: Double, radius: Double, all: Boolean) = AuthApiAction.async { implicit req =>
 		users.nearby((lat, lon), radius, all).map { users =>
 			Ok(users.map { case (user, distance) =>
@@ -125,14 +141,28 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		}
 	}
 
+	/**
+	  * Searches for users matching the given query.
+	  * This method only searches for non-friend users.
+	  *
+	  * @param q the search query, matching both the username and the email address
+	  */
 	def search(q: String) = AuthApiAction.async { implicit req =>
 		users.search(q).map(results => Ok(results))
 	}
 
+	/**
+	  * Fetches the friend list of the given user.
+	  *
+	  * @param uid the user whose list should be returned
+	  */
 	def friendsList(uid: String) = AuthApiAction.async { implicit req =>
 		friends.list(userId(uid)).map(friends => Ok(friends))
 	}
 
+	/**
+	  * Fetches the list of pending incoming friendship requests for the current user.
+	  */
 	def friendRequests = AuthApiAction.async { implicit req =>
 		friends.requests(req.user.id).map { requests =>
 			Ok(requests.map { case (user, date) =>
@@ -141,6 +171,14 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		}
 	}
 
+	/**
+	  * Sends a friendship request to another user.
+	  *
+	  * This step is required before the other user can accept the friendship request,
+	  * to create the actual friendship relation between both user.
+	  *
+	  * @param other the user to which the request should be sent
+	  */
 	def friendSend(other: Int) = AuthApiAction.async { implicit req =>
 		if (other == req.user.id) throw ApiException('USER_FRIEND_SELF_REQUEST, BadRequest)
 		friends.request(req.user.id, other).map {
@@ -149,6 +187,15 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		}
 	}
 
+	/**
+	  * Accepts a friendship request.
+	  *
+	  * This operation requires that a pending friendship request from the other user
+	  * to the current user exists. The pending request will be removed and the friend
+	  * relationship will be recorded.
+	  *
+	  * @param other the user from whose request should be accepted
+	  */
 	def friendAccept(other: Int) = AuthApiAction.async { implicit req =>
 		friends.accept(req.user.id, other).map {
 			case true => NoContent
@@ -156,6 +203,11 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		}
 	}
 
+	/**
+	  * Declines a friendship request.
+	  *
+	  * @param other the user from whose the request should be declined
+	  */
 	def friendDecline(other: Int) = AuthApiAction.async { implicit req =>
 		friends.decline(req.user.id, other).map {
 			case true => NoContent
@@ -163,6 +215,11 @@ class UsersController @Inject() (val users: UserService, val friends: Friendship
 		}
 	}
 
+	/**
+	  * Removes a currently existing friendship relation.
+	  *
+	  * @param other the user who should be removed from the friends list
+	  */
 	def friendRemove(other: Int) = AuthApiAction.async { implicit req =>
 		friends.remove(req.user.id, other).replace(NoContent).orElse(NotFound)
 	}
