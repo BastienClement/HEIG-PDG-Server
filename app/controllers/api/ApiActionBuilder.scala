@@ -66,16 +66,16 @@ trait ApiActionBuilder extends Controller {
 	/** Writes instance for Throwables */
 	implicit val throwableWrites: Writes[Throwable] = Writes[Throwable](serializeThrowable(_))
 
-	/** Writes instance for Symbols */
-	implicit val errorSymbol: Writeable[Symbol] = Writeable[Symbol](
-		writeSymbol.andThen(implicitly[Writeable[JsValue]].transform),
-		Some("application/json")
-	)
-
 	/** Error message JS object */
 	val writeSymbol: (Symbol => JsObject) = sym => Json.obj(
 		"error" -> sym.name,
 		"message" -> ErrorStrings.get(sym)
+	)
+
+	/** Writes instance for Symbols */
+	implicit val errorSymbol: Writeable[Symbol] = Writeable[Symbol](
+		writeSymbol.andThen(implicitly[Writeable[JsValue]].transform),
+		Some("application/json")
 	)
 
 	implicit class WithOpsJsObject(val obj: JsObject) {

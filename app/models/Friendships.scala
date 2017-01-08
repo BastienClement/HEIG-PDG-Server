@@ -7,6 +7,7 @@ case class Friendship(a: Int, b: Int) {
 	require(a < b)
 }
 
+//noinspection TypeAnnotation
 class Friendships(tag: Tag) extends Table[Friendship](tag, "friends") {
 	def a = column[Int]("a", O.PrimaryKey)
 	def b = column[Int]("b", O.PrimaryKey)

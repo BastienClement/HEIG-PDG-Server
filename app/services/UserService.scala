@@ -9,17 +9,62 @@ import utils.DateTime.Units
 import utils.SlickAPI._
 import utils.{BCrypt, Coordinates, DateTime, Patch}
 
+/**
+  * Service responsible for every user-related operations.
+  *
+  * Services are only responsible for actual business logic.
+  * Access control and permissions are managed by the Controller calling the service.
+  *
+  * @param ec an instance of ExecutionContext
+  */
 @Singleton
 class UserService @Inject() (implicit ec: ExecutionContext) {
+	/**
+	  * Fetches a user.
+	  *
+	  * @param id the user ID
+	  * @return
+	  */
 	def get(id: Int): Future[User] = {
 		Users.findById(id).head
 	}
 
+	/**
+	  * Defines the currently active device for the user.
+	  *
+	  * In practice, this should correspond to the session token used by the last
+	  * launched instance of the Eventail client.
+	  *
+	  * The currently active device is checked before updating user current location
+	  * and is the mechanism used to prevent concurrent updates of the user location
+	  * from multiple devices at the same time.
+	  *
+	  * @param id  the user id
+	  * @param cad the currently active device id
+	  * @return a future that will be resolved when the database is updated
+	  */
 	def setCurrentActiveDevice(id: Int, cad: String): Future[_] = {
 		val cadHash = Some(DigestUtils.sha1Hex(cad))
 		Users.findById(id).map(u => u.cad).update(cadHash).run
 	}
 
+	/**
+	  * Updates the user current location.
+	  *
+	  * The given current active device should match the one given to the last call
+	  * to `setCurrentActiveDevice`.
+	  *
+	  * If the given device does not match the one stored in the database, the operation
+	  * fails and the returned future will resolve to false.
+	  *
+	  * @param id     the id of the user to update
+	  * @param coords the current coordinates of the user
+	  * @param cad    the device id issuing the update request,
+	  *               must match the one in the database
+	  * @return a future that will be resolved to true if the operation was successful,
+	  *         false otherwise; most likely, a false result will indicate that the given
+	  *         device id does not match the one in the database.
+	  */
 	def updateLocation(id: Int, coords: Coordinates, cad: String): Future[Boolean] = {
 		val cadHash = DigestUtils.sha1Hex(cad)
 		val userQuery = Users.findById(id).filter(u => u.cad === cadHash || u.cad.isEmpty)
@@ -30,6 +75,14 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 		}
 	}
 
+	/**
+	  * Updates the rank of the given user.
+	  *
+	  * @param id   the user to update
+	  * @param rank the new rank for the user
+	  * @return a future that will be resolved to true if the operation was successful,
+	  *         false otherwise
+	  */
 	def promote(id: Int, rank: Int): Future[Boolean] = {
 		Users.findById(id).map(_.rank).update(rank).run.map {
 			case 1 => true
@@ -40,9 +93,13 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	/**
 	  * Patches a user.
 	  *
-	  * @param id
-	  * @param patch
-	  * @return
+	  * Only the username, first name, last name, email address and password can
+	  * be updated. The password must be given as plain text since this method
+	  * will hash the value of the password field before updating the database.
+	  *
+	  * @param id    the user to update
+	  * @param patch the patch document
+	  * @return a future that will be resolved to the full, updated, user object
 	  */
 	def patch(id: Int, patch: JsObject): Future[User] = {
 		Patch(Users.findById(id))

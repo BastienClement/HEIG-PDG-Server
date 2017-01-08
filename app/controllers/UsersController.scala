@@ -18,7 +18,7 @@ import utils.SlickAPI._
   * @param app   the Play application instance
   */
 @Singleton
-class UsersController @Inject() (val users: UserService, val friends: FriendshipService)
+class UsersController @Inject() (users: UserService, friends: FriendshipService)
                                 (val app: Provider[Application])
 		extends Controller with ApiActionBuilder {
 	/**

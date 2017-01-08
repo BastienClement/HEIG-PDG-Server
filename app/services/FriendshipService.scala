@@ -4,8 +4,10 @@ import com.google.inject.{Inject, Singleton}
 import java.util.NoSuchElementException
 import models._
 import play.api.cache.CacheApi
+import play.api.libs.json.Json
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.Success
 import utils.DateTime
 import utils.SlickAPI._
 
@@ -29,8 +31,11 @@ import utils.SlickAPI._
   * @param cache the Play cache API
   */
 @Singleton
-class FriendshipService @Inject() (cache: CacheApi)
+class FriendshipService @Inject() (cache: CacheApi, ns: NotificationsService)
                                   (implicit ec: ExecutionContext) {
+	/** Implicit self value */
+	private implicit val implicitSelf = this
+
 	/**
 	  * Generates the cache key for the friendship status between a and b.
 	  *
@@ -75,15 +80,39 @@ class FriendshipService @Inject() (cache: CacheApi)
 		} yield (user, request.date)).run
 	}
 
+	/**
+	  * Sends a friendship request.
+	  *
+	  * @param sender    the sender user
+	  * @param recipient the recipient user
+	  * @return a future that will be resolved with true if the operation succedeed,
+	  *         false otherwise
+	  */
 	def request(sender: Int, recipient: Int): Future[Boolean] = {
 		(FriendRequests.between(sender, recipient).exists || Friendships.exists(sender, recipient)).result.flatMap {
 			case false =>
 				FriendRequests += FriendRequest(sender, recipient)
 			case true =>
 				throw new IllegalStateException()
-		}.transactionally.run.map(_ => true).recover { case _ => false }
+		}.transactionally.run.map(_ => true).recover { case _ => false } andThen {
+			case Success(true) =>
+				val senderUser = Users.findById(sender).head
+				val recipientUser = Users.findById(recipient).head
+				for (s <- senderUser; r <- recipientUser) {
+					implicit val pov = new Users.PointOfView(r)
+					ns.send(recipient, "FRIEND_REQUEST", Json.toJson(s))
+				}
+		}
 	}
 
+	/**
+	  * Accepts a friendship request.
+	  *
+	  * @param recipient the recipient user
+	  * @param sender    the sender user
+	  * @return a future that will be resolved with true if the operation succedeed,
+	  *         false otherwise
+	  */
 	def accept(recipient: Int, sender: Int): Future[Boolean] = {
 		val a = if (recipient < sender) recipient else sender
 		val b = if (recipient < sender) sender else recipient
@@ -99,6 +128,14 @@ class FriendshipService @Inject() (cache: CacheApi)
 		}
 	}
 
+	/**
+	  * Declines a friendship request.
+	  *
+	  * @param recipient the recipient user
+	  * @param sender    the sender user
+	  * @return a future that will be resolved with true if the operation succedeed,
+	  *         false otherwise
+	  */
 	def decline(recipient: Int, sender: Int): Future[Boolean] = {
 		FriendRequests.findByKey(sender, recipient).delete.run.map {
 			case 1 => true
