@@ -182,8 +182,9 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	def friendSend(other: Int) = AuthApiAction.async { implicit req =>
 		if (other == req.user.id) throw ApiException('USER_FRIEND_SELF_REQUEST, BadRequest)
 		friends.request(req.user.id, other).map {
-			case true => NoContent
-			case false => Conflict('USER_FRIEND_DUPLICATE)
+			case 'OK => NoContent
+			case 'ALREADY_FRIEND => BadRequest('USER_ALREADY_FRIEND)
+			case 'DUPLICATE => Conflict('USER_FRIEND_REQUEST_DUPLICATE)
 		}
 	}
 

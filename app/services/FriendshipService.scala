@@ -85,17 +85,18 @@ class FriendshipService @Inject() (cache: CacheApi, ns: NotificationsService)
 	  *
 	  * @param sender    the sender user
 	  * @param recipient the recipient user
-	  * @return a future that will be resolved with true if the operation succedeed,
-	  *         false otherwise
+	  * @return a future that will be resolved with the status of the operation
 	  */
-	def request(sender: Int, recipient: Int): Future[Boolean] = {
-		(FriendRequests.between(sender, recipient).exists || Friendships.exists(sender, recipient)).result.flatMap {
-			case false =>
-				FriendRequests += FriendRequest(sender, recipient)
-			case true =>
-				throw new IllegalStateException()
-		}.transactionally.run.map(_ => true).recover { case _ => false } andThen {
-			case Success(true) =>
+	def request(sender: Int, recipient: Int): Future[Symbol] = {
+		(for {
+			friend <- Friendships.exists(sender, recipient).result
+			request <- FriendRequests.between(sender, recipient).exists.result
+		} yield (friend, request)).flatMap {
+			case (true, _) => DBIO.successful('ALREADY_FRIEND)
+			case (_, true) => DBIO.successful('DUPLICATE)
+			case (false, false) => (FriendRequests += FriendRequest(sender, recipient)) andThen DBIO.successful('OK)
+		}.transactionally.run andThen {
+			case Success('OK) =>
 				val senderUser = Users.findById(sender).head
 				val recipientUser = Users.findById(recipient).head
 				for (s <- senderUser; r <- recipientUser) {
