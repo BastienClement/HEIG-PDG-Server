@@ -33,7 +33,6 @@ class NotificationsService @Inject() (cache: CacheApi)
 			val overflow = Notifications.filter(m => m.recipient === user).sortBy(_.date.desc).drop(50).map(_.id)
 			(n.id in overflow) || n.date < (DateTime.now - 7.days)
 		}.delete
-		println(cleanup.statements.mkString("\n"))
 		(insert andThen cleanup).run
 	}
 }
