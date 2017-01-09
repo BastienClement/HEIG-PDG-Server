@@ -62,6 +62,7 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	  * Returns the list of users matching the given filters.
 	  */
 	def list = AuthApiAction.async { implicit req =>
+		if (!req.user.admin) throw ApiException('ADMIN_ACTION_RESTRICTED, Forbidden)
 		PaginationHelper.paginate(Users.sortBy(u => u.id))
 	}
 

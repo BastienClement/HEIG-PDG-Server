@@ -44,6 +44,7 @@ class EventsController @Inject() (events: EventService)
 
 	/** Fetches the list of all events. */
 	def list = AuthApiAction.async { implicit req =>
+		if (!req.user.admin) throw ApiException('ADMIN_ACTION_RESTRICTED, Forbidden)
 		PaginationHelper.paginate(Events.filter(_.end > DateTime.now))
 	}
 
