@@ -2,6 +2,7 @@ package controllers.api
 
 import com.google.inject.Provider
 import models.{User, Users}
+import org.postgresql.util.PSQLException
 import play.api.Application
 import play.api.cache.CacheApi
 import play.api.http.Writeable
@@ -88,16 +89,36 @@ trait ApiActionBuilder extends Controller {
 		def withDetails[D: Writes](details: D): JsObject = writeSymbol(sym) withDetails details
 	}
 
+	/** Uncaught exception handler */
+	private val uncaughtExceptionHandler: PartialFunction[Throwable, Result] = {
+		case err: ApiException => err.status.apply(writeSymbol(err.sym))
+		case err: PSQLException =>
+			val msg = err.getServerErrorMessage
+			InternalServerError(writeSymbol('DATABASE_ERROR) ++ Json.obj(
+			"postgres" -> Json.obj(
+				"severity" -> msg.getSeverity,
+				"message" -> msg.getMessage,
+				"detail" -> msg.getDetail,
+				"state" -> msg.getSQLState,
+				"hint" -> msg.getHint,
+				"schema" -> msg.getSchema,
+				"table" -> msg.getTable,
+				"column" -> msg.getColumn,
+				"constraint" -> msg.getConstraint,
+				"datatype" -> msg.getDatatype,
+				"routine" -> msg.getRoutine,
+				"where" -> msg.getWhere
+			)
+		))
+		case err: Throwable => InternalServerError('UNCAUGHT_EXCEPTION.withCause(err))
+	}
+
 	/** Safely invoke the action constructor and catch potential exceptions */
 	private def wrap[R, A](block: R => Future[Result]): R => Future[Result] = (req: R) => {
 		try {
-			block(req).recover {
-				case err: ApiException => err.status.apply(writeSymbol(err.sym))
-				case err: Throwable => InternalServerError('UNCAUGHT_EXCEPTION.withCause(err))
-			}
+			block(req).recover(uncaughtExceptionHandler)
 		} catch {
-			case err: ApiException => err.status.apply(writeSymbol(err.sym))
-			case err: Throwable => InternalServerError('UNCAUGHT_EXCEPTION.withCause(err))
+			case e: Throwable => uncaughtExceptionHandler(e)
 		}
 	}
 
