@@ -3,10 +3,7 @@ package utils
 import org.postgresql.util.{PSQLException, ServerErrorMessage}
 
 object PostgresError {
-	def unapply(e: PSQLException): Option[(String, String)] = {
-		val msg = e.getServerErrorMessage
-		Some(msg.getSQLState, msg.getTable)
-	}
+	def unapply(e: PSQLException): Option[(String, String)] = Some(e.getSQLState, e.getServerErrorMessage.toString)
 
 	class ErrorMatcher[T](state: String)(extractor: ServerErrorMessage => T) {
 		def unapply(e: PSQLException): Option[T] = {

@@ -30,14 +30,14 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  */
 	def patch(event: Int, patch: JsObject): Future[Event] = {
 		Patch(Events.findById(event))
-		.Require(ev => !ev.spontaneous, "spontaneous events cannot be modified")
-		.MapField("title", _.title)
-		.MapField("desc", _.desc)
-		.MapField("begin", _.begin)
-		.MapField("end", _.end)
-		.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
-		.MapField("radius", _.radius)
-		.Execute(patch)
+				.Require(ev => !ev.spontaneous, "spontaneous events cannot be modified")
+				.MapField("title", _.title)
+				.MapField("desc", _.desc)
+				.MapField("begin", _.begin)
+				.MapField("end", _.end)
+				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+				.MapField("radius", _.radius)
+				.Execute(patch)
 	}
 
 	/**
@@ -122,10 +122,10 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  */
 	def patchPOI(event: Int, id: Int, patch: JsObject): Future[PointOfInterest] = {
 		Patch(PointsOfInterest.findByKey(event, id))
-		.MapField("title", _.title)
-		.MapField("desc", _.desc)
-		.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
-		.Execute(patch)
+				.MapField("title", _.title)
+				.MapField("desc", _.desc)
+				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+				.Execute(patch)
 	}
 
 	/**

@@ -119,12 +119,12 @@ class UserService @Inject() (events: EventService, notify: NotificationsService)
 	  */
 	def patch(id: Int, patch: JsObject): Future[User] = {
 		Patch(Users.findById(id))
-		.MapField("username", _.username)
-		.MapField("firstname", _.firstname)
-		.MapField("lastname", _.lastname)
-		.MapField("mail", _.mail)
-		.Map(d => (d \ "password").asOpt[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt())), _.pass)
-		.Execute(patch)
+				.MapField("username", _.username)
+				.MapField("firstname", _.firstname)
+				.MapField("lastname", _.lastname)
+				.MapField("mail", _.mail)
+				.Map(d => (d \ "password").asOpt[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt())), _.pass)
+				.Execute(patch)
 	}
 
 	/**

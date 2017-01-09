@@ -12,7 +12,7 @@ import scala.language.implicitConversions
 import services.{CryptoService, UserService}
 import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
-import utils.{BCrypt, DateTime, PointOfView}
+import utils.{BCrypt, DateTime, PointOfView, PostgresError}
 
 /**
   * Authentication controller.
@@ -90,21 +90,25 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	/**
 	  * Creates a new account.
 	  */
-	def register = ApiAction.async(parse.tolerantJson) { implicit req =>
+	def register = ApiAction.async { implicit req =>
 		if (!req.anon) throw ApiException('ALREADY_REGISTERED, Forbidden)
-		val user = (for {
-			firstname <- (req.body \ "firstname").validate[String]
-			lastname <- (req.body \ "lastname").validate[String]
-			username <- (req.body \ "username").validate[String]
-			mail <- (req.body \ "mail").validate[String]
-			password <- (req.body \ "password").validate[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt()))
-		} yield (firstname, lastname, username, mail, password)).getOrElse(Unprocessable)
-		val insert = Users.map(u => (u.firstname, u.lastname, u.username, u.mail, u.pass)) += user
+
+		val firstname = param[String]("firstname")
+		val lastname = param[String]("lastname")
+		val username = param[String]("username")
+		val mail = param[String]("mail")
+		val password = param[String]("password")
+
+		val data = (firstname, lastname, username, mail, BCrypt.hashpw(password, BCrypt.gensalt()))
+		val insert = Users.map(u => (u.firstname, u.lastname, u.username, u.mail, u.pass)) += data
+
 		insert.flatMap { _ =>
-			Users.filter(u => u.mail === user._4).result.head.map { u =>
+			Users.filter(u => u.mail === mail).result.head.map { u =>
 				implicit val writes = Users.UserWrites(PointOfView.forUser(u))
-				Created(u).withHeaders("location" -> routes.UsersController.user(u.id.toString).url)
+				Created(u).withHeaders("Location" -> routes.UsersController.user(u.id.toString).url)
 			}
-		}.transactionally.run.orElse(Conflict('REGISTER_DUPLICATE_MAIL))
+		}.transactionally.run.recover {
+			case PostgresError.UniqueViolation(a) => Conflict('REGISTER_DUPLICATE_MAIL)
+		}
 	}
 }
