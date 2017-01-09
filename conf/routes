@@ -4,6 +4,7 @@
 POST          /auth/token                               controllers.AuthController.token
 POST          /auth/launch                              controllers.AuthController.launch
 POST          /auth/extend                              controllers.AuthController.extend
+POST          /auth/register                            controllers.AuthController.register
 
 # Notifications
 GET           /notifications                            controllers.NotificationsController.notifications

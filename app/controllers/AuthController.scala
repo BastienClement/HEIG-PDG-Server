@@ -10,9 +10,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.implicitConversions
 import services.{CryptoService, UserService}
-import utils.DateTime
 import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
+import utils.{BCrypt, DateTime}
 
 /**
   * Authentication controller.
@@ -85,5 +85,26 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	  */
 	def extend = AuthApiAction { implicit req =>
 		genToken(req.user)
+	}
+
+	/**
+	  * Creates a new account.
+	  */
+	def register = ApiAction.async(parse.tolerantJson) { implicit req =>
+		if (!req.anon) throw ApiException('ALREADY_REGISTERED, Forbidden)
+		val user = (for {
+			firstname <- (req.body \ "firstname").validate[String]
+			lastname <- (req.body \ "lastname").validate[String]
+			username <- (req.body \ "username").validate[String]
+			mail <- (req.body \ "mail").validate[String]
+			password <- (req.body \ "password").validate[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt()))
+		} yield (firstname, lastname, username, mail, password)).getOrElse(Unprocessable)
+		val insert = Users.map(u => (u.firstname, u.lastname, u.username, u.mail, u.pass)) += user
+		insert.flatMap { _ =>
+			Users.filter(u => u.mail === user._4).result.head.map { u =>
+				implicit val writes = Users.UserWrites(new Users.PointOfView(u))
+				Created(u).withHeaders("location" -> routes.UsersController.user(u.id.toString).url)
+			}
+		}.transactionally.run.orElse(Conflict('REGISTER_DUPLICATE_MAIL))
 	}
 }

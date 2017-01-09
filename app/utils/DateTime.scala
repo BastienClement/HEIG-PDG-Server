@@ -55,6 +55,9 @@ object DateTime {
 	/** Constructs a DateTime holding the current day at 00:00:00 */
 	def today: DateTime = fromInstant(clock.instant().truncatedTo(ChronoUnit.DAYS))
 
+	/** Arbitrary epoch */
+	val epoch: DateTime = DateTime(1992, 2, 2)
+
 	// Json format
 	implicit val DateTimeFormat = new Format[DateTime] {
 		def reads(json: JsValue) = json match {

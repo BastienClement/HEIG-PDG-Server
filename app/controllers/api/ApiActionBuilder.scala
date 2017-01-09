@@ -181,7 +181,7 @@ trait ApiActionBuilder extends Controller {
 	}
 
 	/** Default value for missing parameters */
-	private def Unprocessable: Nothing = throw ApiException('UNPROCESSABLE_ENTITY, UnprocessableEntity)
+	protected def Unprocessable: Nothing = throw ApiException('UNPROCESSABLE_ENTITY, UnprocessableEntity)
 
 	/**
 	  * Attempts to read input parameters.
