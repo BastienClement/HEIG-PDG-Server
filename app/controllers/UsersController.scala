@@ -8,8 +8,8 @@ import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
 import scala.util.Try
 import services.{FriendshipService, UserService}
-import utils.Coordinates
 import utils.SlickAPI._
+import utils.{Coordinates, PaginationHelper}
 
 /**
   * The controller handing user-related and friendship management operations.
@@ -62,9 +62,7 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	  * Returns the list of users matching the given filters.
 	  */
 	def list = AuthApiAction.async { implicit req =>
-		Users.sortBy(u => u.id).run.map { users =>
-			Ok(Json.toJson(users))
-		}
+		PaginationHelper.paginate(Users.sortBy(u => u.id))
 	}
 
 	/**

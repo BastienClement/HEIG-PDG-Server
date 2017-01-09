@@ -10,7 +10,7 @@ import scala.concurrent.Future
 import services.EventService
 import utils.DateTime.Units
 import utils.SlickAPI._
-import utils.{DateTime, PointOfView}
+import utils.{DateTime, PaginationHelper, PointOfView}
 
 /**
   * The events controller.
@@ -43,10 +43,8 @@ class EventsController @Inject() (events: EventService)
 	}
 
 	/** Fetches the list of all events. */
-	def list = AuthApiAction.async { req =>
-		Events.run.map { events =>
-			Ok(events.map(Json.toJson[Event]))
-		}
+	def list = AuthApiAction.async { implicit req =>
+		PaginationHelper.paginate(Events.filter(_.end > DateTime.now))
 	}
 
 	/** Fetches information about a specific event. */
