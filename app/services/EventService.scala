@@ -84,8 +84,8 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 		sql"""
 			SELECT *, earth_distance(ll_to_earth(lat, lon), ll_to_earth(${lat}, ${lon})) AS dist
 			FROM events
-			WHERE earth_box(ll_to_earth(lat, lon), radius * 1.5) @> ll_to_earth(${lat}, ${lon})
-				AND earth_distance(ll_to_earth(lat, lon), ll_to_earth(${lat}, ${lon})) <= (radius * 1.5)
+			WHERE earth_box(ll_to_earth(lat, lon), radius + 250) @> ll_to_earth(${lat}, ${lon})
+				AND earth_distance(ll_to_earth(lat, lon), ll_to_earth(${lat}, ${lon})) <= (radius + 250)
 				AND NOT EXISTS (SELECT * FROM visits WHERE event_id = id AND user_id = ${uid})
 			ORDER BY dist ASC
 			LIMIT 100""".as[(Event, Double)].run
