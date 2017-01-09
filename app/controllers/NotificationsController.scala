@@ -21,6 +21,8 @@ class NotificationsController @Inject() (ns: NotificationsService)
 		extends Controller with ApiActionBuilder {
 	/** Fetches pending notification for the client */
 	def notifications = AuthApiAction.async { implicit req =>
-		ns.fetch(req.user.id, req.token).map(list => Ok(list)).orElse(Conflict)
+		ns.fetch(req.user.id, req.token).map(list => Ok(list)).recover {
+			case _: IllegalStateException => Conflict('CONCURRENT_ACCESS)
+		}
 	}
 }

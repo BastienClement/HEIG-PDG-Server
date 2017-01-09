@@ -5,6 +5,7 @@ object ErrorStrings {
 		'ADMIN_ACTION_RESTRICTED -> "This action can only be performed by administrator users.",
 		'AUTH_TOKEN_BAD_CREDENTIALS -> "This user is unknown or the password is incorrect.",
 		'AUTHORIZATION_REQUIRED -> "This endpoint requires a valid authorization token.",
+		'CONCURRENT_ACCESS -> "This endpoint was called from a device that is not the user's current active device.",
 		'DATABASE_ERROR -> "An error occurred during a database operation.",
 		'EVENT_NOT_FOUND -> "The requested event does not exist.",
 		'EVENT_POI_NOT_FOUND -> "The requested point of interest does not exist.",
