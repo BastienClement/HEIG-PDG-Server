@@ -12,7 +12,7 @@ import services.UptimeService
   * basic server status information API.
   *
   * @param uptime an instance of the uptime service
-  * @param app a provider for the Play-application instance
+  * @param app    a provider for the Play-application instance
   */
 @Singleton
 class DummyController @Inject() (uptime: UptimeService)
