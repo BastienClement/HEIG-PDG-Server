@@ -7,7 +7,6 @@ import play.api.Application
 import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.{Controller, Result}
 import scala.concurrent.Future
-import scala.util.Try
 import services.EventService
 import utils.DateTime.Units
 import utils.SlickAPI._
@@ -52,37 +51,39 @@ class EventsController @Inject() (events: EventService)
 
 	/** Fetches information about a specific event. */
 	def get(id: Int) = AuthApiAction.async { req =>
-		Events.findById(id).head.map(event => Ok(Json.toJson(event))).orElse(NotFound('EVENT_NOT_FOUND))
+		Events.findById(id).head.map(event => Ok(Json.toJson(event))).recover {
+			case _: NoSuchElementException => NotFound('EVENT_NOT_FOUND)
+		}
 	}
 
 	/** Creates a new event. */
 	def create = AuthApiAction.async(parse.tolerantJson) { req =>
 		if (req.user.restricted) throw ApiException('USER_RESTRICTED, Forbidden)
-		Try {
-			val body = req.body.as[JsObject]
-			val spontaneous = (body \ "spontaneous").asOpt[Boolean].getOrElse(false)
-			val base = Json.obj("id" -> 0, "owner" -> req.user.id)
-			val obj = if (spontaneous) {
-				base ++ body ++ Json.obj(
-					"spontaneous" -> true,
-					"begin" -> DateTime.now,
-					"end" -> (DateTime.now + 30.minutes)
-				)
-			} else {
-				base ++ body ++ Json.obj(
-					"spontaneous" -> false
-				)
-			}
-			obj.as[Event]
-		}.map { event =>
-			((Events returning Events.map(_.id) into ((e, i) => e.copy(id = i))) += event).run.map { ev =>
-				Created(ev).withHeaders("Location" -> routes.EventsController.get(ev.id).url)
-			}.recover { case e =>
-				InternalServerError('EVENT_CREATE_ERROR withCause e)
-			}
-		}.recover { case e =>
-			Future.successful(BadRequest('EVENT_BAD_REQUEST withCause e))
-		}.get
+
+		// Base JSON object for the event
+		val body = req.body.as[JsObject]
+		val base = Json.obj("id" -> 0, "owner" -> req.user.id) ++ body
+
+		// Whether the event is spontaneous
+		val spontaneous = (body \ "spontaneous").asOpt[Boolean].getOrElse(false)
+
+		// Handle both cases
+		val obj = if (spontaneous) {
+			base ++ Json.obj(
+				"spontaneous" -> true,
+				"begin" -> DateTime.now,
+				"end" -> (DateTime.now + 30.minutes)
+			)
+		} else {
+			base ++ Json.obj(
+				"spontaneous" -> false
+			)
+		}
+
+		// Database insert
+		(Events insert obj.as[Event]).run.map { ev =>
+			Created(ev).withHeaders("Location" -> routes.EventsController.get(ev.id).url)
+		}
 	}
 
 	/** Updates an event */
@@ -90,7 +91,9 @@ class EventsController @Inject() (events: EventService)
 		ensureEventEditable(id) {
 			events.patch(id, req.body.as[JsObject])
 					.map(ev => Ok(ev))
-					.orElse(NotFound('EVENT_NOT_FOUND))
+					.recover {
+						case _: NoSuchElementException => NotFound('EVENT_NOT_FOUND)
+					}
 		}
 	}
 
@@ -123,9 +126,8 @@ class EventsController @Inject() (events: EventService)
 
 	/** Fetches a specific Point of Interest for a given event. */
 	def getPOI(event: Int, id: Int) = AuthApiAction.async {
-		events.getPOI(event, id).map {
-			case Some(poi) => Ok(poi)
-			case None => NotFound('EVENT_POI_NOT_FOUND)
+		events.getPOI(event, id).map(poi => Ok(poi)).recover {
+			case _: NoSuchElementException => NotFound('EVENT_POI_NOT_FOUND)
 		}
 	}
 
@@ -142,7 +144,9 @@ class EventsController @Inject() (events: EventService)
 		ensureEventEditable(event) {
 			events.patchPOI(event, id, req.body.as[JsObject])
 					.map(poi => Ok(poi))
-					.orElse(NotFound('EVENT_POI_NOT_FOUND))
+					.recover {
+						case _: NoSuchElementException => NotFound('EVENT_POI_NOT_FOUND)
+					}
 		}
 	}
 

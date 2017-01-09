@@ -98,7 +98,7 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  *
 	  * @param id the POI id
 	  */
-	def getPOI(event: Int, id: Int): Future[Option[PointOfInterest]] = PointsOfInterest.findByKey(event, id).headOption
+	def getPOI(event: Int, id: Int): Future[PointOfInterest] = PointsOfInterest.findByKey(event, id).head
 
 	/**
 	  * Registers a new Point of Interest in the database.
