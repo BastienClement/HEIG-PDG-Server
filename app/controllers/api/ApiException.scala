@@ -13,4 +13,5 @@ import play.api.mvc.Results
   * @param sym    the error symbol
   * @param status the status code to use
   */
-case class ApiException(sym: Symbol, status: Results#Status = Results.InternalServerError) extends Exception
+case class ApiException(sym: Symbol, status: Results#Status = Results.InternalServerError,
+                        cause: Option[Throwable] = None, details: Option[String] = None) extends Exception
