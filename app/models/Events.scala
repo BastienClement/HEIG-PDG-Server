@@ -60,4 +60,7 @@ object Events extends TableQuery(new Events(_)) {
 	}
 
 	def findById(id: Int) = Events.filter(e => e.id === id)
+
+	val insertQuery = Events returning Events.map(_.id) into ((e, i) => e.copy(id = i))
+	def insert(e: Event) = insertQuery += e
 }
