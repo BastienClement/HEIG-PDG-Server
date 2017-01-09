@@ -97,6 +97,7 @@ object Users extends TableQuery(new Users(_)) {
 		}
 
 		private val isAdmin: Boolean = pov.admin
+		private val isSelf: Boolean = pov.self(user)
 		private val isFriend: Boolean = pov.friend(user)
 
 		// Proxies and filters to the source user object
@@ -104,7 +105,7 @@ object Users extends TableQuery(new Users(_)) {
 		def username: String = user.username
 		def firstname: Option[String] = filter(isFriend, user.firstname)
 		def lastname: Option[String] = filter(isFriend, user.lastname)
-		def mail: Option[String] = filter(isAdmin, user.mail)
+		def mail: Option[String] = filter(isAdmin || isSelf, user.mail)
 		def rank: Option[Int] = filter(isAdmin, user.rank)
 		def admin: Boolean = user.admin
 		def location: Option[Coordinates] = filter(isFriend, user.location).flatten
