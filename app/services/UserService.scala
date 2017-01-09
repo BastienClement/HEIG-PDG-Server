@@ -1,11 +1,13 @@
 package services
 
 import com.google.inject.{Inject, Singleton}
-import models.{User, Users}
+import models.{User, Users, Visit, Visits}
 import org.apache.commons.codec.digest.DigestUtils
-import play.api.libs.json.JsObject
+import play.api.libs.json.{JsObject, Json}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Success
 import utils.DateTime.Units
+import utils.Implicits.FutureOps
 import utils.SlickAPI._
 import utils._
 
@@ -18,7 +20,8 @@ import utils._
   * @param ec an instance of ExecutionContext
   */
 @Singleton
-class UserService @Inject() (implicit ec: ExecutionContext) {
+class UserService @Inject() (events: EventService, notify: NotificationsService)
+                            (implicit ec: ExecutionContext, fs: FriendshipService) {
 	/**
 	  * Fetches a user.
 	  *
@@ -57,7 +60,7 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	  * If the given device does not match the one stored in the database, the operation
 	  * fails and the returned future will resolve to false.
 	  *
-	  * @param id     the id of the user to update
+	  * @param user   the user to update
 	  * @param coords the current coordinates of the user
 	  * @param cad    the device id issuing the update request,
 	  *               must match the one in the database
@@ -65,13 +68,26 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	  *         false otherwise; most likely, a false result will indicate that the given
 	  *         device id does not match the one in the database.
 	  */
-	def updateLocation(id: Int, coords: Coordinates, cad: String): Future[Boolean] = {
+	def updateLocation(user: User, coords: Coordinates, cad: String): Future[Boolean] = {
 		val cadHash = DigestUtils.sha1Hex(cad)
-		val userQuery = Users.findById(id).filter(u => u.cad === cadHash || u.cad.isEmpty)
+		val userQuery = Users.findById(user.id).filter(u => u.cad === cadHash || u.cad.isEmpty)
 		val data = (coords.lat, coords.lon, Some(cadHash), DateTime.now)
 		userQuery.map(user => (user.lat, user.lon, user.cad, user.updated)).update(data).run.map {
 			case 0 => false
 			case 1 => true
+		} andThenAsync {
+			case Success(true) =>
+				implicit val pov = PointOfView.forUser(user)
+				events.unvisited(coords).flatMap { list =>
+					Future.sequence(list.map { case (event, distance) =>
+						notify.send(user.id, "NEARBY_EVENT", Json.obj(
+							"event" -> event,
+							"distance" -> distance
+						)).flatMap { _ =>
+							(Visits += Visit(event.id, user.id)).run
+						}
+					})
+				}
 		}
 	}
 
@@ -103,12 +119,12 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	  */
 	def patch(id: Int, patch: JsObject): Future[User] = {
 		Patch(Users.findById(id))
-				.MapField("username", _.username)
-				.MapField("firstname", _.firstname)
-				.MapField("lastname", _.lastname)
-				.MapField("mail", _.mail)
-				.Map(d => (d \ "password").asOpt[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt())), _.pass)
-				.Execute(patch)
+		.MapField("username", _.username)
+		.MapField("firstname", _.firstname)
+		.MapField("lastname", _.lastname)
+		.MapField("mail", _.mail)
+		.Map(d => (d \ "password").asOpt[String].map(p => BCrypt.hashpw(p, BCrypt.gensalt())), _.pass)
+		.Execute(patch)
 	}
 
 	/**
