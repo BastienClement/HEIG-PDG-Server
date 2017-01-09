@@ -3,8 +3,9 @@ package utils
 import controllers.api.ApiException
 import play.api.libs.json.{JsReadable, Reads}
 import play.api.mvc.Results
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.implicitConversions
+import scala.util.Try
 
 object Implicits {
 	/**
@@ -31,5 +32,23 @@ object Implicits {
 			to[T](ApiException(sym, status))
 		}
 		def to[T: Reads](e: ApiException): T = js.asOpt[T].getOrElse(throw e)
+	}
+
+	implicit class FutureOps[T](private val f: Future[T]) extends AnyVal {
+		def andThenAsync[B](pf: PartialFunction[Try[T], Future[B]])
+		                   (implicit ec: ExecutionContext): Future[T] = {
+			val p = Promise[T]()
+			f.onComplete { res =>
+				try {
+					pf.lift.apply(res) match {
+						case Some(other) => other.onComplete(_ => p.complete(res))
+						case None => p.complete(res)
+					}
+				} finally {
+					p.complete(res)
+				}
+			}
+			p.future
+		}
 	}
 }

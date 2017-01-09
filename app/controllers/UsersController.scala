@@ -115,7 +115,7 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	def location = AuthApiAction.async { implicit req =>
 		val lat = param[Double]("lat")
 		val lon = param[Double]("lon")
-		users.updateLocation(req.user.id, (lat, lon), req.token).map {
+		users.updateLocation(req.user, (lat, lon), req.token).map {
 			case true => NoContent
 			case false => Conflict
 		}

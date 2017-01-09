@@ -15,7 +15,7 @@ import scala.util.Try
 import services.{CryptoService, FriendshipService}
 import utils.Implicits.futureWrapper
 import utils.SlickAPI._
-import utils.{DateTime, ErrorStrings}
+import utils.{DateTime, ErrorStrings, PointOfView}
 
 /**
   * Mixin trait for API controllers.
@@ -208,8 +208,8 @@ trait ApiActionBuilder extends Controller {
 	def NotYetImplemented = Action { req => NotImplemented('NOT_YET_IMPLEMENTED) }
 
 	/** Implicitly construct a PointOfView as the user issuing the request. */
-	protected implicit def implicitPointOfViewFromRequest(implicit req: ApiRequest[_]): Users.PointOfView = {
-		new Users.PointOfView(req.user)
+	protected implicit def implicitPointOfViewFromRequest(implicit req: ApiRequest[_]): PointOfView = {
+		req.userOpt.map(u => PointOfView.forUser(u)).getOrElse(PointOfView.anonymous)
 	}
 
 	/**

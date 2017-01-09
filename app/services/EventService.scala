@@ -5,7 +5,7 @@ import models._
 import play.api.libs.json.JsObject
 import scala.concurrent.{ExecutionContext, Future}
 import utils.SlickAPI._
-import utils.{Coordinates, Patch}
+import utils.{Coordinates, Patch, PointOfView}
 
 @Singleton
 class EventService @Inject() (implicit ec: ExecutionContext) {
@@ -16,7 +16,7 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  * @param event the event being edited
 	  * @param pov   the user's point of view
 	  */
-	def canEditEvent(event: Int)(implicit pov: Users.PointOfView): Future[Boolean] = {
+	def canEditEvent(event: Int)(implicit pov: PointOfView): Future[Boolean] = {
 		if (pov.admin) Future.successful(true)
 		else Events.findById(event).filter(e => e.owner === pov.user.id).exists.run
 	}
@@ -30,14 +30,14 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  */
 	def patch(event: Int, patch: JsObject): Future[Event] = {
 		Patch(Events.findById(event))
-				.Require(ev => !ev.spontaneous, "spontaneous events cannot be modified")
-				.MapField("title", _.title)
-				.MapField("desc", _.desc)
-				.MapField("begin", _.begin)
-				.MapField("end", _.end)
-				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
-				.MapField("radius", _.radius)
-				.Execute(patch)
+		.Require(ev => !ev.spontaneous, "spontaneous events cannot be modified")
+		.MapField("title", _.title)
+		.MapField("desc", _.desc)
+		.MapField("begin", _.begin)
+		.MapField("end", _.end)
+		.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+		.MapField("radius", _.radius)
+		.Execute(patch)
 	}
 
 	/**
@@ -61,12 +61,34 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  * @return a list of nearby events and their distance (in meters) from the given point
 	  */
 	def nearby(point: Coordinates, radius: Double): Future[Seq[(Event, Double)]] = {
-		val (lat, lon) = Coordinates.unpack(point)
+		val (lat, lon) = point.unpack
 		sql"""
 			SELECT *, earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) AS dist
 			FROM events
 			WHERE earth_box(ll_to_earth(${lat}, ${lon}), ${radius}) @> ll_to_earth(lat, lon)
 				AND earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) <= ${radius}
+	         AND end_time > now()
+			ORDER BY dist ASC
+			LIMIT 100""".as[(Event, Double)].run
+	}
+
+	/**
+	  * Searches for unvisited nearby events.
+	  *
+	  * @param point the current location of the user
+	  * @param pov   the user point of view
+	  * @return a list of nearby unvisited events and their distance (in meters)
+	  */
+	def unvisited(point: Coordinates)(implicit pov: PointOfView): Future[Seq[(Event, Double)]] = {
+		val (lat, lon) = point.unpack
+		val uid = pov.user.id
+		sql"""
+			SELECT *, earth_distance(ll_to_earth(lat, lon), ll_to_earth(${lat}, ${lon})) AS dist
+			FROM events
+			WHERE earth_box(ll_to_earth(lat, lon), radius + 250) @> ll_to_earth(${lat}, ${lon})
+				AND earth_distance(ll_to_earth(lat, lon), ll_to_earth(${lat}, ${lon})) <= (radius + 250)
+				AND NOT EXISTS (SELECT * FROM visits WHERE event_id = id AND user_id = ${uid})
+	         AND end_time > now()
 			ORDER BY dist ASC
 			LIMIT 100""".as[(Event, Double)].run
 	}
@@ -100,10 +122,10 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  */
 	def patchPOI(event: Int, id: Int, patch: JsObject): Future[PointOfInterest] = {
 		Patch(PointsOfInterest.findByKey(event, id))
-				.MapField("title", _.title)
-				.MapField("desc", _.desc)
-				.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
-				.Execute(patch)
+		.MapField("title", _.title)
+		.MapField("desc", _.desc)
+		.Map(doc => (doc \ "location").asOpt[Coordinates].map(Coordinates.unpack), poi => (poi.lat, poi.lon))
+		.Execute(patch)
 	}
 
 	/**

@@ -12,7 +12,7 @@ import scala.language.implicitConversions
 import services.{CryptoService, UserService}
 import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
-import utils.{BCrypt, DateTime}
+import utils.{BCrypt, DateTime, PointOfView}
 
 /**
   * Authentication controller.
@@ -40,7 +40,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	  * @param extended whether the token should have extended life-time
 	  * @param pov      the point of view of the user iteself
 	  */
-	private def genToken(user: User, extended: Boolean = false)(implicit pov: Users.PointOfView): Result = {
+	private def genToken(user: User, extended: Boolean = false)(implicit pov: PointOfView): Result = {
 		val duration = if (extended && user.admin) 180.days else 7.days
 		val expires = DateTime.now + duration
 		val token = Json.obj("user" -> user.id, "expires" -> expires)
@@ -59,7 +59,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 			crypto.check(pass, refPass)
 		}.map { case (u, _) =>
 			if (u.banned) throw ApiException('USER_BANNED, Forbidden)
-			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))(new Users.PointOfView(u))
+			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))(PointOfView.forUser(u))
 		}.recover { case e =>
 			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
 		}
@@ -102,7 +102,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 		val insert = Users.map(u => (u.firstname, u.lastname, u.username, u.mail, u.pass)) += user
 		insert.flatMap { _ =>
 			Users.filter(u => u.mail === user._4).result.head.map { u =>
-				implicit val writes = Users.UserWrites(new Users.PointOfView(u))
+				implicit val writes = Users.UserWrites(PointOfView.forUser(u))
 				Created(u).withHeaders("location" -> routes.UsersController.user(u.id.toString).url)
 			}
 		}.transactionally.run.orElse(Conflict('REGISTER_DUPLICATE_MAIL))

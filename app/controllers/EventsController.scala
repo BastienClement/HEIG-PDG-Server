@@ -9,9 +9,9 @@ import play.api.mvc.{Controller, Result}
 import scala.concurrent.Future
 import scala.util.Try
 import services.EventService
-import utils.DateTime
 import utils.DateTime.Units
 import utils.SlickAPI._
+import utils.{DateTime, PointOfView}
 
 /**
   * The events controller.
@@ -36,7 +36,7 @@ class EventsController @Inject() (events: EventService)
 	  */
 	private def ensureEventEditable[T <: Result](event: Int)
 	                                            (action: => Future[T])
-	                                            (implicit pov: Users.PointOfView): Future[Result] = {
+	                                            (implicit pov: PointOfView): Future[Result] = {
 		events.canEditEvent(event).flatMap {
 			case true => action
 			case false => Future.successful(Forbidden('EVENT_EDIT_FORBIDDEN))
