@@ -91,7 +91,17 @@ trait ApiActionBuilder extends Controller {
 
 	/** Uncaught exception handler */
 	private val uncaughtExceptionHandler: PartialFunction[Throwable, Result] = {
-		case err: ApiException => err.status.apply(writeSymbol(err.sym))
+		case err: ApiException =>
+			var error = writeSymbol(err.sym)
+			for (details <- err.details) error = error withDetails details
+			for (cause <- err.cause) error = error withCause cause
+			err.status.apply(error)
+
+		case JsResultException(errors) =>
+			UnprocessableEntity(writeSymbol('UNPROCESSABLE_ENTITY) ++ Json.obj(
+				"json" -> errors.flatMap { case (_, e) => e.map(_.message) }
+			))
+
 		case err: PSQLException =>
 			val msg = err.getServerErrorMessage
 			InternalServerError(writeSymbol('DATABASE_ERROR) ++ Json.obj(
@@ -110,7 +120,9 @@ trait ApiActionBuilder extends Controller {
 				"where" -> msg.getWhere
 			)
 		))
-		case err: Throwable => InternalServerError('UNCAUGHT_EXCEPTION.withCause(err))
+
+		case err: Throwable =>
+			InternalServerError('UNCAUGHT_EXCEPTION.withCause(err))
 	}
 
 	/** Safely invoke the action constructor and catch potential exceptions */
@@ -199,6 +211,11 @@ trait ApiActionBuilder extends Controller {
 		implicit val stringMapper: QueryStringReader[String] = QueryStringReader(Some.apply)
 		implicit val intMapper: QueryStringReader[Int] = unsafeWrapper(_.toInt)
 		implicit val doubleMapper: QueryStringReader[Double] = unsafeWrapper(_.toDouble)
+		implicit val booleanMapper: QueryStringReader[Boolean] = QueryStringReader {
+			case "true" | "1" | "yes" => Some(true)
+			case "false" | "0" | "no" => Some(false)
+			case _ => None
+		}
 	}
 
 	/** Default value for missing parameters */

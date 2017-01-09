@@ -8,9 +8,7 @@ import play.api.libs.json.Json
 import play.api.mvc.{Controller, Result}
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.implicitConversions
 import services.{CryptoService, UserService}
-import utils.Implicits.safeJsReadTyping
 import utils.SlickAPI._
 import utils.{BCrypt, DateTime, PointOfView, PostgresError}
 
@@ -51,17 +49,18 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	  * Request a new authorization token from user credentials.
 	  * Banned users are forbidden from requesting new authorization tokens.
 	  */
-	def token = ApiAction.async(parse.json) { req =>
-		val mail = (req.body \ "mail").to[String]
-		val pass = (req.body \ "pass").to[String]
+	def token = ApiAction.async(parse.tolerantJson) { implicit req =>
+		val mail = (req.body \ "mail").as[String]
+		val pass = (req.body \ "pass").as[String]
+		val extended = (req.body \ "extended").asOpt[Boolean].getOrElse(false)
 
 		Users.filter(u => u.mail === mail).map(u => (u, u.pass)).head.filter { case (_, refPass) =>
 			crypto.check(pass, refPass)
 		}.map { case (u, _) =>
 			if (u.banned) throw ApiException('USER_BANNED, Forbidden)
-			genToken(u, (req.body \ "extended").asOpt[Boolean].contains(true))(PointOfView.forUser(u))
-		}.recover { case e =>
-			Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
+			genToken(u, extended)(PointOfView.forUser(u))
+		}.recover {
+			case _: NoSuchElementException => Unauthorized('AUTH_TOKEN_BAD_CREDENTIALS)
 		}
 	}
 
@@ -69,7 +68,7 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	  * Registers the launch of a client application.
 	  *
 	  * This update the currently active device of the user, allowing it to
-	  * perform location update, and implicitly disabled every other concurent
+	  * perform location update, and implicitly disabled every other concurrent
 	  * client instances.
 	  */
 	def launch = ApiAction.async { req =>
@@ -90,14 +89,14 @@ class AuthController @Inject() (crypto: CryptoService, users: UserService)
 	/**
 	  * Creates a new account.
 	  */
-	def register = ApiAction.async { implicit req =>
+	def register = ApiAction.async(parse.tolerantJson) { implicit req =>
 		if (!req.anon) throw ApiException('ALREADY_REGISTERED, Forbidden)
 
-		val firstname = param[String]("firstname")
-		val lastname = param[String]("lastname")
-		val username = param[String]("username")
-		val mail = param[String]("mail")
-		val password = param[String]("password")
+		val firstname = (req.body \ "firstname").as[String]
+		val lastname = (req.body \ "lastname").as[String]
+		val username = (req.body \ "username").as[String]
+		val mail = (req.body \ "mail").as[String]
+		val password = (req.body \ "password").as[String]
 
 		val data = (firstname, lastname, username, mail, BCrypt.hashpw(password, BCrypt.gensalt()))
 		val insert = Users.map(u => (u.firstname, u.lastname, u.username, u.mail, u.pass)) += data
