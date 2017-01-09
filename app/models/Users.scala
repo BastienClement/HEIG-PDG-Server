@@ -106,7 +106,7 @@ object Users extends TableQuery(new Users(_)) {
 		def firstname: Option[String] = filter(isFriend, user.firstname)
 		def lastname: Option[String] = filter(isFriend, user.lastname)
 		def mail: Option[String] = filter(isAdmin || isSelf, user.mail)
-		def admin: Boolean = user.admin
+		def rank: Option[Int] = filter(isAdmin || isSelf, user.rank)
 		def location: Option[Coordinates] = filter(isFriend, user.location).flatten
 	}
 
@@ -118,7 +118,7 @@ object Users extends TableQuery(new Users(_)) {
 			"firstname" -> u.firstname,
 			"lastname" -> u.lastname,
 			"mail" -> u.mail,
-			"admin" -> u.admin,
+			"rank" -> u.rank,
 			"location" -> u.location
 		)
 	}

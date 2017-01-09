@@ -77,18 +77,6 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	}
 
 	/**
-	  * Returns user rank value.
-	  *
-	  * This action is only available to administrator users.
-	  *
-	  * @param user the user id or the keyword "self"
-	  */
-	def rank(user: String) = AuthApiAction.async { implicit req =>
-		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
-		else users.get(userId(user)).map(u => Ok(u.rank)).orElse(NotFound('USERS_USER_NOT_FOUND))
-	}
-
-	/**
 	  * Updates the user rank.
 	  *
 	  * This action is only available to administrators users.

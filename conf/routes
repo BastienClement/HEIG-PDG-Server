@@ -31,7 +31,6 @@ GET           /users/search                             controllers.UsersControl
 PUT           /users/self/location                      controllers.UsersController.location
 GET           /users/:uid                               controllers.UsersController.user(uid)
 PATCH         /users/:uid                               controllers.UsersController.patch(uid)
-GET           /users/:uid/rank                          controllers.UsersController.rank(uid)
 PUT           /users/:uid/rank                          controllers.UsersController.promote(uid)
 
 # Friends
