@@ -64,19 +64,17 @@ class UserService @Inject() (events: EventService, notify: NotificationsService)
 	  * @param coords the current coordinates of the user
 	  * @param cad    the device id issuing the update request,
 	  *               must match the one in the database
-	  * @return a future that will be resolved to true if the operation was successful,
-	  *         false otherwise; most likely, a false result will indicate that the given
-	  *         device id does not match the one in the database.
+	  * @return a future that will be resolved successfully if the operation was successful
 	  */
-	def updateLocation(user: User, coords: Coordinates, cad: String): Future[Boolean] = {
+	def updateLocation(user: User, coords: Coordinates, cad: String): Future[Unit] = {
 		val cadHash = DigestUtils.sha1Hex(cad)
 		val userQuery = Users.findById(user.id).filter(u => u.cad === cadHash || u.cad.isEmpty)
 		val data = (coords.lat, coords.lon, Some(cadHash), DateTime.now)
 		userQuery.map(user => (user.lat, user.lon, user.cad, user.updated)).update(data).run.map {
-			case 0 => false
-			case 1 => true
+			case 0 => throw new IllegalStateException()
+			case 1 => ()
 		} andThenAsync {
-			case Success(true) =>
+			case Success(_) =>
 				implicit val pov = PointOfView.forUser(user)
 				events.unvisited(coords).flatMap { list =>
 					Future.sequence(list.map { case (event, distance) =>

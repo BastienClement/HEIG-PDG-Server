@@ -6,9 +6,9 @@ import models.{User, Users}
 import play.api.Application
 import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.mvc.Controller
-import scala.concurrent.Future
 import scala.util.Try
 import services.{FriendshipService, UserService}
+import utils.Coordinates
 import utils.SlickAPI._
 
 /**
@@ -73,7 +73,9 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	  * @param user the user id or the keyword "self"
 	  */
 	def user(user: String) = AuthApiAction.async { implicit req =>
-		users.get(userId(user)).map(u => Ok(u)).orElse(NotFound('USER_NOT_FOUND))
+		users.get(userId(user)).map(u => Ok(u)).recover {
+			case _: NoSuchElementException => NotFound('USER_NOT_FOUND)
+		}
 	}
 
 	/**
@@ -84,8 +86,10 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	  * @param user the user id or the keyword "self"
 	  */
 	def promote(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
-		if (!req.user.admin) Future.successful(Forbidden('ADMIN_ACTION_RESTRICTED))
-		else users.promote(userId(user), req.body.as[Int]).replace(NoContent).orElse(NotFound('USER_NOT_FOUND))
+		if (!req.user.admin) throw ApiException('ADMIN_ACTION_RESTRICTED, Forbidden)
+		users.promote(userId(user), req.body.as[Int]).replace(NoContent).recover {
+			case _: NoSuchElementException => NotFound('USER_NOT_FOUND)
+		}
 	}
 
 	/**
@@ -94,18 +98,21 @@ class UsersController @Inject() (users: UserService, friends: FriendshipService)
 	  * @param user the user id ot the keyword "self"
 	  */
 	def patch(user: String) = AuthApiAction.async(parse.tolerantJson) { implicit req =>
-		users.patch(userId(user, selfOnly = true), req.body.as[JsObject]).map(u => Ok(u))
+		users.patch(userId(user, selfOnly = true), req.body.as[JsObject]).map(u => Ok(u)).recover {
+			case _: NoSuchElementException => NotFound('USER_NOT_FOUND)
+		}
 	}
 
 	/**
 	  * Updates user location.
 	  */
-	def location = AuthApiAction.async { implicit req =>
-		val lat = param[Double]("lat")
-		val lon = param[Double]("lon")
-		users.updateLocation(req.user, (lat, lon), req.token).map {
-			case true => NoContent
-			case false => Conflict
+	def location = AuthApiAction.async(parse.tolerantJson) { implicit req =>
+		val location = req.body.asOpt[Coordinates].orElse {
+			for (lat <- (req.body \ "lat").asOpt[Double]; lon <- (req.body \ "lon").asOpt[Double])
+				yield Coordinates(lat, lon)
+		}.getOrElse(Unprocessable)
+		users.updateLocation(req.user, location, req.token).replace(NoContent).recover {
+			case _: IllegalStateException => Conflict('CONCURRENT_ACCESS)
 		}
 	}
 

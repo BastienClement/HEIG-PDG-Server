@@ -44,8 +44,10 @@ object Implicits {
 						case Some(other) => other.onComplete(_ => p.complete(res))
 						case None => p.complete(res)
 					}
-				} finally {
-					p.complete(res)
+				} catch {
+					case e :Throwable =>
+						p.complete(res)
+						throw e
 				}
 			}
 			p.future
