@@ -7,7 +7,7 @@ import play.api.libs.json.JsObject
 import scala.concurrent.{ExecutionContext, Future}
 import utils.DateTime.Units
 import utils.SlickAPI._
-import utils.{BCrypt, Coordinates, DateTime, Patch}
+import utils._
 
 /**
   * Service responsible for every user-related operations.
@@ -121,8 +121,7 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	  * @param pov the point of view
 	  * @return a list of users matching the query
 	  */
-	def search(q: String)
-	          (implicit pov: Users.PointOfView): Future[Seq[User]] = {
+	def search(q: String)(implicit pov: PointOfView): Future[Seq[User]] = {
 		val (lat, lon) = pov.user.location.getOrElse(Coordinates(46.5197, 6.6323)).unpack
 		val pattern = q.replaceAll("_|%", "").toLowerCase + "%"
 		sql"""
@@ -149,8 +148,8 @@ class UserService @Inject() (implicit ec: ExecutionContext) {
 	  * @return a list of nearby users and their distance (in meters) from the given point
 	  */
 	def nearby(point: Coordinates, radius: Double, all: Boolean = false)
-	          (implicit pov: Users.PointOfView): Future[Seq[(User, Double)]] = {
-		val (lat, lon) = Coordinates.unpack(point)
+	          (implicit pov: PointOfView): Future[Seq[(User, Double)]] = {
+		val (lat, lon) = point.unpack
 		val expiration = (DateTime.now - 55.minutes).toTimestamp
 		sql"""
 			SELECT *, earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) AS dist

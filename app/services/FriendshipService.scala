@@ -8,8 +8,8 @@ import play.api.libs.json.Json
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Success
-import utils.DateTime
 import utils.SlickAPI._
+import utils.{DateTime, PointOfView}
 
 /**
   * Friendship management service.
@@ -100,7 +100,7 @@ class FriendshipService @Inject() (cache: CacheApi, ns: NotificationsService)
 				val senderUser = Users.findById(sender).head
 				val recipientUser = Users.findById(recipient).head
 				for (s <- senderUser; r <- recipientUser) {
-					implicit val pov = new Users.PointOfView(r)
+					implicit val pov = PointOfView.forUser(r)
 					ns.send(recipient, "FRIEND_REQUEST", Json.toJson(s))
 				}
 		}
