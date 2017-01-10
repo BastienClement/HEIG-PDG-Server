@@ -36,7 +36,8 @@ object PaginationHelper {
 		results.map { case (total, items) =>
 			Results.Ok(Json.toJson(items)).withHeaders(
 				"X-Paginate-Items" -> total.toString,
-				"X-Paginate-Pages" -> (total.toDouble / count).ceil.toLong.toString
+				"X-Paginate-Pages" -> (total.toDouble / count).ceil.toLong.toString,
+				"Access-Control-Expose-Headers" -> "X-Paginate-Items, X-Paginate-Pages"
 			)
 		}.run
 	}
