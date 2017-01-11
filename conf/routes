@@ -12,6 +12,7 @@ GET           /notifications                            controllers.Notification
 # Events
 GET           /events                                   controllers.EventsController.list
 POST          /events                                   controllers.EventsController.create
+GET           /events/mine                              controllers.EventsController.mine
 GET           /events/nearby                            controllers.EventsController.nearby(lat: Double, lon: Double, radius: Double ?= 1000)
 GET           /events/:id                               controllers.EventsController.get(id: Int)
 PATCH         /events/:id                               controllers.EventsController.patch(id: Int)

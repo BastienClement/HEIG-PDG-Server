@@ -106,6 +106,11 @@ class EventsController @Inject() (events: EventService)
 		}
 	}
 
+	/** List of events from the user. */
+	def mine = AuthApiAction.async { implicit req =>
+		PaginationHelper.paginate(Events.filter(e => e.end > DateTime.now && e.owner === req.user.id))
+	}
+
 	/** Searches for nearby events. */
 	def nearby(lat: Double, lon: Double, radius: Double) = AuthApiAction.async {
 		events.nearby((lat, lon), radius).map { events =>

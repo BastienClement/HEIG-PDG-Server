@@ -58,16 +58,17 @@ class EventService @Inject() (implicit ec: ExecutionContext) {
 	  *
 	  * @param point  the point around which users are searched
 	  * @param radius the search radius (in meters)
+	  * @param future whether event not yet started should appear
 	  * @return a list of nearby events and their distance (in meters) from the given point
 	  */
-	def nearby(point: Coordinates, radius: Double): Future[Seq[(Event, Double)]] = {
+	def nearby(point: Coordinates, radius: Double, future: Boolean = true): Future[Seq[(Event, Double)]] = {
 		val (lat, lon) = point.unpack
 		sql"""
 			SELECT *, earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) AS dist
 			FROM events
 			WHERE earth_box(ll_to_earth(${lat}, ${lon}), ${radius}) @> ll_to_earth(lat, lon)
 				AND earth_distance(ll_to_earth(${lat}, ${lon}), ll_to_earth(lat, lon)) <= ${radius}
-	         AND begin_time < now() AND now() < end_time
+	         AND (${future} OR begin_time < now()) AND now() < end_time
 			ORDER BY dist ASC
 			LIMIT 100""".as[(Event, Double)].run
 	}
